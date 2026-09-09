@@ -508,8 +508,22 @@
                 <div class="stat-row">
                     <div class="stat-icon-lg purple">🗂</div>
                     <div>
-                        <div class="stat-val" id="statCollection">—</div>
-                        <div class="stat-lbl">向量库名称</div>
+                        <div class="stat-val" id="statChunks">—</div>
+                        <div class="stat-lbl">知识块（向量）</div>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-lg purple">📄</div>
+                    <div>
+                        <div class="stat-val" id="statDocuments">—</div>
+                        <div class="stat-lbl">入库文档</div>
+                    </div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-lg purple">🕐</div>
+                    <div>
+                        <div class="stat-val" id="statUpdated">—</div>
+                        <div class="stat-lbl">最近入库</div>
                     </div>
                 </div>
                 <hr class="stat-divider">
@@ -642,16 +656,15 @@
                 });
                 const data = await res.json();
 
-                if (res.ok) {
-                    if (data.success) {
-                        addLogEntry('success', file.name, data.result);
-                        successCount++;
-                    } else {
-                        addLogEntry('info', file.name, data.result);
-                        skipCount++;
-                    }
+                if (res.ok && data.status === 'success') {
+                    addLogEntry('success', file.name, data.message);
+                    successCount++;
+                } else if (res.ok && data.status === 'skipped') {
+                    addLogEntry('info', file.name, data.message);
+                    skipCount++;
                 } else {
-                    addLogEntry('error', file.name, data.detail || '上传失败');
+                    addLogEntry('error', file.name,
+                        res.ok ? data.message : (data.detail || '上传失败'));
                     failCount++;
                 }
             } catch (err) {
@@ -698,16 +711,17 @@
             });
             const data = await res.json();
 
-            if (res.ok && data.success) {
-                addLogEntry('success', source, data.result);
+            if (res.ok && data.status === 'success') {
+                addLogEntry('success', source, data.message);
                 showToast('知识已添加成功', 'success');
                 document.getElementById('kbText').value = '';
                 refreshStats();
-            } else if (res.ok && !data.success) {
-                addLogEntry('info', source, data.result);
-                showToast(data.result, '');
+            } else if (res.ok && data.status === 'skipped') {
+                addLogEntry('info', source, data.message);
+                showToast(data.message, '');
             } else {
-                addLogEntry('error', source, data.detail || '添加失败');
+                addLogEntry('error', source,
+                    res.ok ? data.message : (data.detail || '添加失败'));
                 showToast('添加失败', 'error');
             }
         } catch (err) {
@@ -721,8 +735,13 @@
         try {
             const res = await fetch(`${API_BASE}/knowledge/stats`);
             const data = await res.json();
-            document.getElementById('statCollection').textContent = data.collection_name;
-        } catch (err) { /* ignore */ }
+            document.getElementById('statChunks').textContent = data.chunks ?? '—';
+            document.getElementById('statDocuments').textContent =
+                data.documents != null ? data.documents : '—';
+            document.getElementById('statUpdated').textContent = data.last_updated || '—';
+        } catch (err) {
+            // 统计获取失败：保留占位符，不打断页面
+        }
     }
 
     // ==================== Log ====================
