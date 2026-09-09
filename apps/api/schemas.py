@@ -17,7 +17,6 @@ class QAResponse(BaseModel):
     """问答响应（非流式）"""
     answer: str = Field(..., description="AI 回答")
     session_id: str = Field(..., description="会话ID")
-    references: list[str] = Field(default=[], description="参考文档来源列表")
 
 
 class ChatHistoryItem(BaseModel):
@@ -47,17 +46,15 @@ class ClearHistoryResponse(BaseModel):
 
 class KnowledgeUploadResponse(BaseModel):
     """知识库上传响应"""
-    filename: str
-    result: str
-    success: bool
+    filename: str = Field(..., description="文件名")
+    status: str = Field(..., description="结果状态: success / skipped / error")
+    chunks: int = Field(..., description="本次入库的分块数")
+    message: str = Field(..., description="人类可读的结果描述")
 
 
 class KnowledgeStats(BaseModel):
     """知识库统计信息"""
-    collection_name: str
-
-
-class ErrorResponse(BaseModel):
-    """通用错误响应"""
-    detail: str
-    error_code: Optional[str] = None
+    collection_name: str = Field(..., description="向量库集合名")
+    chunks: int = Field(..., description="向量块总数")
+    documents: Optional[int] = Field(default=None, description="文档记录数（Django）")
+    last_updated: Optional[str] = Field(default=None, description="最近入库时间")

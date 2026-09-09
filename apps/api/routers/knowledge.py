@@ -9,6 +9,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from apps.api.schemas import KnowledgeUploadResponse, KnowledgeStats
 from apps.core.services import knowledge_base_service
+import config_data as config
 
 router = APIRouter()
 
@@ -41,12 +42,13 @@ async def upload_file(file: UploadFile = File(...)):
         result = knowledge_base_service.upload_by_file_content(
             content, file.filename or "unknown.txt"
         )
-
-        success = "[成功]" in result
+        if result["status"] == "error":
+            raise HTTPException(status_code=400, detail=result["message"])
         return KnowledgeUploadResponse(
             filename=file.filename or "unknown.txt",
-            result=result,
-            success=success,
+            status=result["status"],
+            chunks=result["chunks"],
+            message=result["message"],
         )
     except HTTPException:
         raise
@@ -69,11 +71,11 @@ async def upload_text(
 
     try:
         result = knowledge_base_service.upload_by_str(text, filename)
-        success = "[成功]" in result or "[跳过]" in result
         return KnowledgeUploadResponse(
             filename=filename,
-            result=result,
-            success=success,
+            status=result["status"],
+            chunks=result["chunks"],
+            message=result["message"],
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"上传失败: {str(e)}")
@@ -81,6 +83,11 @@ async def upload_text(
 
 @router.get("/stats", response_model=KnowledgeStats, summary="知识库统计")
 async def get_stats():
-    """获取知识库基本信息"""
-    import config_data as config
-    return KnowledgeStats(collection_name=config.collection_name)
+    """获取知识库统计：向量块数、文档记录数、最近入库时间"""
+    s = knowledge_base_service.stats()
+    return KnowledgeStats(
+        collection_name=config.collection_name,
+        documents=s["documents"],
+        chunks=s["chunks"],
+        last_updated=s["last_updated"],
+    )
