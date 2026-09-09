@@ -41,17 +41,8 @@ class VectorStoreService:
     def get_retriever(self):
         """返回向量检索器，方便加入 LangChain chain"""
         return self.vector_store.as_retriever(
-            search_kwargs={"k": config.similarity_threshold}
+            search_kwargs={"k": config.retrieval_top_k}
         )
-
-    def get_store(self):
-        """直接返回 Chroma 向量存储实例"""
-        return self.vector_store
-
-    def search(self, query: str, k: int = None) -> list:
-        """直接搜索，返回文档列表"""
-        k = k or config.similarity_threshold
-        return self.vector_store.similarity_search(query, k=k)
 
 
 # 全局单例
