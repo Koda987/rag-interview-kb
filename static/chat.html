@@ -503,8 +503,11 @@
         const typingEl = addTypingIndicator();
         scrollToBottom();
 
+        let bubbleEl = null;  // 流式气泡（首块文本到达后创建）
+
         try {
-            const response = await fetch(`${API_BASE}/qa/ask`, {
+            // SSE 流式问答：边生成边渲染（fetch + ReadableStream 解析）
+            const response = await fetch(`${API_BASE}/qa/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: text, session_id: sessionId })
@@ -514,15 +517,68 @@
                 const err = await response.json();
                 throw new Error(err.detail || '请求失败');
             }
+            if (!response.body) {
+                throw new Error('当前浏览器不支持流式接收');
+            }
 
-            const data = await response.json();
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';   // 未完成的帧缓存
+            let full = '';     // 已累计的回答文本
+            let streamError = null;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                // SSE 帧以空行（\n\n）分隔，一次读取可能包含多帧
+                let idx;
+                while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                    const frame = buffer.slice(0, idx);
+                    buffer = buffer.slice(idx + 2);
+                    const dataLine = frame.startsWith('data: ') ? frame.slice(6) : frame;
+
+                    if (dataLine === '[DONE]') continue;
+
+                    let payload = null;
+                    try { payload = JSON.parse(dataLine); } catch (e) { /* 跳过坏帧 */ }
+                    if (payload && payload.error) { streamError = payload.error; break; }
+                    if (payload && payload.text) full += payload.text;
+
+                    // 首块文本到达：打字指示器换成真实气泡，开始增量渲染
+                    if (!bubbleEl && full) {
+                        typingEl.remove();
+                        bubbleEl = createStreamingBubble();
+                        messageCount++;
+                    }
+                    if (bubbleEl) {
+                        bubbleEl.innerHTML = escapeHtml(full).replace(/\n/g, '<br>');
+                        scrollToBottom();
+                    }
+                }
+                if (streamError) break;
+            }
+
             typingEl.remove();
-            addMessage('assistant', data.answer);
-            messageCount++;
+            if (streamError) throw new Error(streamError);
+            if (bubbleEl) {
+                // 流结束后对完整文本做一次 Markdown 渲染
+                bubbleEl.innerHTML = renderContent(full || '（空回复）');
+            } else {
+                addMessage('assistant', full || '（空回复）');
+                messageCount++;
+            }
         } catch (err) {
             typingEl.remove();
-            addMessage('assistant', '抱歉，服务暂时不可用：' + err.message);
-            messageCount++;
+            if (bubbleEl) {
+                // 流中断：保留已生成部分，追加错误提示
+                bubbleEl.innerHTML += '<br><br>⚠️ 连接中断：' + escapeHtml(err.message);
+                showToast('回答流中断：' + err.message, 'error');
+            } else {
+                addMessage('assistant', '抱歉，服务暂时不可用：' + err.message);
+                messageCount++;
+            }
         }
 
         scrollToBottom();
@@ -564,6 +620,22 @@
         return div;
     }
 
+    // ==================== Streaming bubble ====================
+    function createStreamingBubble() {
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const div = document.createElement('div');
+        div.className = 'msg assistant';
+        div.innerHTML = `
+            <div class="msg-avatar">◈</div>
+            <div class="msg-body">
+                <div class="msg-bubble"></div>
+                <div class="msg-time">${time}</div>
+            </div>
+        `;
+        messagesEl.appendChild(div);
+        return div.querySelector('.msg-bubble');
+    }
+
     // ==================== Simple markdown renderer ====================
     function renderContent(text) {
         // Escape HTML first
@@ -599,13 +671,39 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: sessionId })
             });
-            messagesEl.innerHTML = '';
-            messagesEl.style.display = 'none';
-            emptyState.style.display = 'flex';
-            messageCount = 0;
+            resetConversationView();
             showToast('对话历史已清空', 'success');
         } catch (err) {
             showToast('清除失败: ' + err.message, 'error');
+        }
+    }
+
+    // ==================== Conversation view reset ====================
+    function resetConversationView() {
+        messagesEl.innerHTML = '';
+        messagesEl.style.display = 'none';
+        emptyState.style.display = 'flex';
+        messageCount = 0;
+    }
+
+    // ==================== History restore ====================
+    async function loadHistory() {
+        const sessionId = sessionIdEl.value.trim() || 'default';
+        try {
+            const res = await fetch(`${API_BASE}/qa/history?session_id=${encodeURIComponent(sessionId)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (!data.messages || data.messages.length === 0) return;
+
+            emptyState.style.display = 'none';
+            messagesEl.style.display = 'flex';
+            for (const m of data.messages) {
+                addMessage(m.role, m.content);
+                messageCount++;
+            }
+            scrollToBottom();
+        } catch (err) {
+            // 历史恢复失败不阻塞新对话，静默降级
         }
     }
 
@@ -630,6 +728,16 @@
             setTimeout(() => toast.remove(), 300);
         }, 3200);
     }
+
+    // ==================== Init ====================
+    // 页面加载：恢复当前会话的历史（后端按 session 持久化了对话）
+    loadHistory();
+
+    // 切换会话 ID：切换到对应会话的历史
+    sessionIdEl.addEventListener('change', () => {
+        resetConversationView();
+        loadHistory();
+    });
 </script>
 
 </body>

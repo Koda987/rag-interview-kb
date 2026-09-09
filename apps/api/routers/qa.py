@@ -7,6 +7,8 @@
     GET   /qa/history      - 获取对话历史
     DELETE /qa/history     - 清除对话历史
 """
+import json
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from apps.api.schemas import (
@@ -45,7 +47,9 @@ def ask_stream(request: QARequest):
     RAG 智能问答（流式 SSE）。
 
     以 Server-Sent Events 形式逐 token 返回 AI 回答，
-    前端可使用 EventSource 或 fetch + ReadableStream 接收。
+    前端使用 fetch + ReadableStream 接收并逐块渲染。
+    每个 chunk 用 JSON 包一层（{"text": "..."}），避免文本内含
+    换行符时破坏 SSE 帧分隔；[DONE] 为结束哨兵。
     """
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="问题不能为空")
@@ -53,11 +57,11 @@ def ask_stream(request: QARequest):
     def generate():
         try:
             for chunk in rag_service.stream(request.question, request.session_id):
-                # SSE 格式: data: <content>\n\n
-                yield f"data: {chunk}\n\n"
+                # SSE 格式: data: <json>\n\n
+                yield f"data: {json.dumps({'text': chunk}, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
-            yield f"data: [ERROR] {str(e)}\n\n"
+            yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         generate(),
