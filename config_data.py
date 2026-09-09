@@ -19,9 +19,3 @@ similarity_threshold = 5            # 检索返回匹配的文档数量
 address="https://api.siliconflow.cn/v1"
 embedding_model_name = "BAAI/bge-m3"
 chat_model_name = "deepseek-ai/DeepSeek-V4-Flash"
-
-session_config = {
-        "configurable": {
-            "session_id": "user_001",
-        }
-    }

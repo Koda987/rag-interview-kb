@@ -1,7 +1,6 @@
 """
 服务层 —— 对外暴露统一的服务接口。
 
-将原始 RAG 模块（rag.py / knowledge_base.py / vector_stores.py）封装为
 线程安全的单例服务，供 FastAPI 路由和 Django 管理命令调用。
 """
 from .rag_service import rag_service
