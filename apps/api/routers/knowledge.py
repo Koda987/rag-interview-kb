@@ -7,6 +7,7 @@
     GET  /knowledge/stats         - 获取知识库统计信息
 """
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi.concurrency import run_in_threadpool
 from apps.api.schemas import KnowledgeUploadResponse, KnowledgeStats
 from apps.core.services import knowledge_base_service
 import config_data as config
@@ -39,7 +40,10 @@ async def upload_file(file: UploadFile = File(...)):
         if not content:
             raise HTTPException(status_code=400, detail="文件内容为空")
 
-        result = knowledge_base_service.upload_by_file_content(
+        # 上传含阻塞的向量化 API 调用，放入线程池执行，
+        # 避免卡住事件循环（否则上传期间聊天/流式输出都会被阻塞）
+        result = await run_in_threadpool(
+            knowledge_base_service.upload_by_file_content,
             content, file.filename or "unknown.txt"
         )
         if result["status"] == "error":
@@ -57,7 +61,7 @@ async def upload_file(file: UploadFile = File(...)):
 
 
 @router.post("/upload-text", response_model=KnowledgeUploadResponse, summary="上传文本内容到知识库")
-async def upload_text(
+def upload_text(
     text: str = Form(..., description="文本内容"),
     filename: str = Form(default="manual_input.txt", description="来源文件名")
 ):
@@ -82,8 +86,13 @@ async def upload_text(
 
 
 @router.get("/stats", response_model=KnowledgeStats, summary="知识库统计")
-async def get_stats():
-    """获取知识库统计：向量块数、文档记录数、最近入库时间"""
+def get_stats():
+    """获取知识库统计：向量块数、文档记录数、最近入库时间
+
+    注意保持同步 def：FastAPI 会放入线程池执行；
+    async def 里直接调 Django ORM 会触发
+    SynchronousOnlyOperation 异常。
+    """
     s = knowledge_base_service.stats()
     return KnowledgeStats(
         collection_name=config.collection_name,
