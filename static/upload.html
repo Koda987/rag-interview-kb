@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库管理 — RAG 知识引擎</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           DESIGN SYSTEM — 知识引擎 Knowledge Engine
+           (Shared with chat.html)
+           ============================================================ */
+        :root {
+            --ink: #1c1b1f;
+            --ink-muted: #5f5d66;
+            --ink-subtle: #94929e;
+            --paper: #faf8f5;
+            --paper-warm: #f4f0ea;
+            --surface: #ffffff;
+            --border: #e8e6e1;
+            --border-light: #f0ede8;
+
+            --brand: #5b4fcf;
+            --brand-dark: #4439b3;
+            --brand-light: #7e73e0;
+            --brand-ghost: #f3f1fe;
+            --brand-surface: #faf9ff;
+
+            --success: #2d6a4f;
+            --success-bg: #edf7f1;
+            --warning: #8a6d14;
+            --warning-bg: #fef9e7;
+            --error: #c1292e;
+            --error-bg: #fef2f2;
+
+            --font-display: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+            --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                         'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+            --text-xs: 0.6875rem;
+            --text-sm: 0.8125rem;
+            --text-base: 0.9375rem;
+            --text-md: 1.0625rem;
+            --text-lg: 1.25rem;
+            --text-xl: 1.5rem;
+
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            --space-2xl: 48px;
+
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+            --radius-full: 9999px;
+
+            --shadow-sm: 0 1px 2px rgba(28,27,31,0.04);
+            --shadow-md: 0 4px 16px rgba(28,27,31,0.06);
+            --shadow-lg: 0 12px 40px rgba(28,27,31,0.08);
+            --shadow-glow: 0 0 0 3px rgba(91,79,207,0.12);
+
+            --ease-out: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--paper);
+            color: var(--ink);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           NAVIGATION
+           ============================================================ */
+        .nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(255,255,255,0.82);
+            backdrop-filter: blur(16px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            padding: 0 var(--space-xl);
+        }
+        .nav-inner {
+            max-width: 1100px; margin: 0 auto;
+            display: flex; align-items: center; gap: var(--space-lg);
+            height: 56px;
+        }
+        .nav-brand {
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; color: var(--ink);
+            font-family: var(--font-display);
+            font-weight: 700; font-size: var(--text-md);
+            letter-spacing: -0.01em;
+        }
+        .nav-brand .logo-mark {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--brand), var(--brand-light));
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 16px;
+        }
+        .nav-links {
+            display: flex; gap: 4px; margin-left: var(--space-xl);
+        }
+        .nav-link {
+            padding: 6px 14px; border-radius: var(--radius-sm);
+            text-decoration: none; font-size: var(--text-sm); font-weight: 500;
+            color: var(--ink-muted); transition: var(--ease-out);
+        }
+        .nav-link:hover { color: var(--ink); background: var(--paper-warm); }
+        .nav-link.active {
+            color: var(--brand); background: var(--brand-ghost); font-weight: 600;
+        }
+
+        /* ============================================================
+           MAIN LAYOUT
+           ============================================================ */
+        .main {
+            max-width: 900px; margin: 0 auto;
+            padding: var(--space-2xl) var(--space-md) var(--space-2xl);
+        }
+
+        /* Page header */
+        .page-header {
+            margin-bottom: var(--space-2xl);
+        }
+        .page-header h1 {
+            font-family: var(--font-display);
+            font-size: var(--text-xl); font-weight: 700;
+            letter-spacing: -0.02em; margin-bottom: var(--space-xs);
+        }
+        .page-header p {
+            color: var(--ink-muted); font-size: var(--text-sm);
+        }
+
+        /* ============================================================
+           TWO-COLUMN GRID
+           ============================================================ */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-lg);
+        }
+        @media (max-width: 700px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        /* ============================================================
+           CARD
+           ============================================================ */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-sm);
+        }
+        .card-header {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: var(--space-md);
+        }
+        .card-header .card-icon {
+            width: 36px; height: 36px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .card-icon.purple { background: var(--brand-ghost); }
+        .card-icon.green { background: var(--success-bg); }
+        .card-header h3 {
+            font-family: var(--font-display);
+            font-size: var(--text-base); font-weight: 700;
+        }
+        .card-header .badge {
+            font-size: var(--text-xs); font-weight: 600;
+            padding: 2px 10px; border-radius: var(--radius-full);
+            margin-left: auto;
+        }
+        .badge.info { background: var(--brand-ghost); color: var(--brand); }
+
+        /* ============================================================
+           UPLOAD ZONE (Card)
+           ============================================================ */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-xl) var(--space-md);
+            text-align: center; cursor: pointer;
+            transition: var(--ease-out);
+            background: var(--paper);
+            margin-bottom: var(--space-md);
+        }
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: var(--brand-light);
+            background: var(--brand-surface);
+            box-shadow: var(--shadow-glow);
+        }
+        .upload-zone .zone-icon {
+            font-size: 40px; margin-bottom: var(--space-sm);
+            display: block;
+        }
+        .upload-zone .zone-title {
+            font-size: var(--text-base); font-weight: 600;
+            color: var(--ink); margin-bottom: 4px;
+        }
+        .upload-zone .zone-hint {
+            font-size: var(--text-xs); color: var(--ink-subtle);
+        }
+        .upload-zone .zone-types {
+            display: flex; gap: 6px; justify-content: center;
+            margin-top: var(--space-md); flex-wrap: wrap;
+        }
+        .type-tag {
+            padding: 3px 10px; font-size: 10px; font-weight: 600;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-full); color: var(--ink-muted);
+            font-family: var(--font-mono);
+        }
+        input[type="file"] { display: none; }
+
+        /* File queue */
+        .file-queue {
+            display: flex; flex-direction: column; gap: var(--space-sm);
+            max-height: 200px; overflow-y: auto;
+        }
+        .file-queue::-webkit-scrollbar { width: 3px; }
+        .file-queue::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+        .file-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; background: var(--paper);
+            border-radius: var(--radius-sm); border: 1px solid var(--border-light);
+            font-size: var(--text-sm);
+        }
+        .file-item .fi-icon { font-size: 20px; flex-shrink: 0; }
+        .file-item .fi-info { flex: 1; min-width: 0; }
+        .file-item .fi-name {
+            font-weight: 600; white-space: nowrap; overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .file-item .fi-meta {
+            font-size: var(--text-xs); color: var(--ink-muted);
+        }
+        .file-item .fi-remove {
+            width: 24px; height: 24px; border: none; background: transparent;
+            color: var(--ink-subtle); cursor: pointer; border-radius: 50%;
+            font-size: 14px; flex-shrink: 0; transition: var(--ease-out);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .file-item .fi-remove:hover { background: var(--error-bg); color: var(--error); }
+
+        /* Upload all button */
+        .btn-upload-all {
+            width: 100%; margin-top: var(--space-md);
+            padding: 10px 20px; border: none; border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+            color: #fff; font-family: var(--font-body); font-size: var(--text-sm);
+            font-weight: 600; cursor: pointer; transition: var(--ease-spring);
+        }
+        .btn-upload-all:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(91,79,207,0.3); }
+        .btn-upload-all:active { transform: scale(0.98); }
+        .btn-upload-all:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ============================================================
+           TEXT INPUT CARD
+           ============================================================ */
+        .text-input-group { margin-bottom: var(--space-md); }
+        .text-input-group label {
+            display: block; font-size: var(--text-xs); font-weight: 600;
+            color: var(--ink-muted); margin-bottom: 4px;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .text-input-group textarea {
+            width: 100%; border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 10px 14px;
+            font-size: var(--text-sm); font-family: var(--font-body);
+            resize: vertical; min-height: 80px; outline: none;
+            transition: var(--ease-out); background: var(--paper);
+            line-height: 1.6;
+        }
+        .text-input-group textarea:focus {
+            border-color: var(--brand-light);
+            box-shadow: var(--shadow-glow);
+            background: var(--surface);
+        }
+        .text-input-group textarea::placeholder { color: var(--ink-subtle); }
+        .text-input-group input {
+            width: 100%; border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 8px 12px;
+            font-size: var(--text-sm); font-family: var(--font-body);
+            outline: none; transition: var(--ease-out);
+            background: var(--paper);
+        }
+        .text-input-group input:focus {
+            border-color: var(--brand-light); box-shadow: var(--shadow-glow);
+            background: var(--surface);
+        }
+
+        .btn-primary {
+            width: 100%; padding: 10px 20px; border: none;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+            color: #fff; font-family: var(--font-body); font-size: var(--text-sm);
+            font-weight: 600; cursor: pointer; transition: var(--ease-spring);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(91,79,207,0.3); }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ============================================================
+           STATS CARD
+           ============================================================ */
+        .stat-row {
+            display: flex; align-items: center; gap: var(--space-md);
+            padding: var(--space-sm) 0;
+        }
+        .stat-icon-lg {
+            width: 48px; height: 48px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; flex-shrink: 0;
+        }
+        .stat-icon-lg.purple { background: var(--brand-ghost); }
+        .stat-val {
+            font-size: 20px; font-weight: 700; color: var(--brand-dark);
+            font-family: var(--font-mono);
+        }
+        .stat-lbl { font-size: var(--text-xs); color: var(--ink-muted); }
+        .stat-divider {
+            border: none; border-top: 1px solid var(--border-light);
+            margin: var(--space-md) 0;
+        }
+
+        /* ============================================================
+           UPLOAD LOG (persistent)
+           ============================================================ */
+        .log-section { margin-top: var(--space-2xl); }
+        .log-section h2 {
+            font-family: var(--font-display); font-size: var(--text-lg);
+            font-weight: 700; margin-bottom: var(--space-md);
+        }
+        .log-list {
+            display: flex; flex-direction: column; gap: var(--space-sm);
+        }
+        .log-item {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 12px 16px; border-radius: var(--radius-sm);
+            font-size: var(--text-sm); border: 1px solid var(--border-light);
+            background: var(--surface);
+            animation: logIn 0.3s ease-out;
+        }
+        @keyframes logIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .log-item .log-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+        .log-item .log-body { flex: 1; min-width: 0; }
+        .log-item .log-title { font-weight: 600; }
+        .log-item .log-detail { font-size: var(--text-xs); color: var(--ink-muted); margin-top: 2px; }
+        .log-item .log-time {
+            font-size: var(--text-xs); color: var(--ink-subtle);
+            flex-shrink: 0;
+        }
+        .log-item.success { border-left: 3px solid var(--success); }
+        .log-item.info { border-left: 3px solid var(--brand-light); }
+        .log-item.warning { border-left: 3px solid var(--warning); }
+        .log-item.error { border-left: 3px solid var(--error); }
+        .log-empty {
+            text-align: center; color: var(--ink-subtle);
+            padding: var(--space-xl); font-size: var(--text-sm);
+        }
+
+        /* ============================================================
+           TOAST
+           ============================================================ */
+        .toast-container {
+            position: fixed; top: 72px; right: 20px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .toast {
+            background: var(--surface); padding: 12px 18px;
+            border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+            font-size: var(--text-sm); border-left: 3px solid var(--brand);
+            animation: slideIn 0.3s ease-out; max-width: 360px;
+        }
+        .toast.error { border-left-color: var(--error); }
+        .toast.success { border-left-color: var(--success); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(24px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 640px) {
+            .nav { padding: 0 var(--space-md); }
+            .nav-links { display: none; }
+            .main { padding: var(--space-lg) var(--space-sm); }
+            .card { padding: var(--space-md); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAVIGATION
+     ============================================================ -->
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="/api/" class="nav-brand">
+            <span class="logo-mark">◈</span>
+            知识引擎
+        </a>
+        <div class="nav-links">
+            <a href="/api/chat" class="nav-link">对话</a>
+            <a href="/api/upload" class="nav-link active">知识库</a>
+        </div>
+    </div>
+</nav>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<main class="main">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>知识库管理</h1>
+        <p>上传文档构建知识库，让 AI 的回答更精准、更贴合业务场景</p>
+    </div>
+
+    <!-- Two-column grid -->
+    <div class="grid">
+        <!-- LEFT: File Upload -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon purple">📄</div>
+                <h3>文件上传</h3>
+                <span class="badge info" id="queueCount">0 个文件</span>
+            </div>
+
+            <!-- Drop zone -->
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                <span class="zone-icon">📂</span>
+                <div class="zone-title">点击选择或拖拽文件到此处</div>
+                <div class="zone-hint">支持批量上传</div>
+                <div class="zone-types">
+                    <span class="type-tag">.txt</span>
+                    <span class="type-tag">.md</span>
+                    <span class="type-tag">.csv</span>
+                    <span class="type-tag">.json</span>
+                    <span class="type-tag">.xml</span>
+                    <span class="type-tag">.html</span>
+                    <span class="type-tag">.log</span>
+                </div>
+            </div>
+            <input type="file" id="fileInput"
+                   accept=".txt,.md,.csv,.json,.xml,.html,.log"
+                   multiple onchange="addFiles(this.files)">
+
+            <!-- File queue -->
+            <div class="file-queue" id="fileQueue">
+                <div class="log-empty">尚未选择文件</div>
+            </div>
+
+            <!-- Upload button -->
+            <button class="btn-upload-all" id="btnUploadAll" disabled
+                    onclick="uploadAllFiles()">
+                ⬆ 上传全部文件
+            </button>
+        </div>
+
+        <!-- RIGHT: Text Input + Stats -->
+        <div style="display:flex;flex-direction:column;gap:var(--space-lg);">
+            <!-- Text Input Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon purple">✏️</div>
+                    <h3>快速添加知识</h3>
+                </div>
+                <div class="text-input-group">
+                    <label>知识内容</label>
+                    <textarea id="kbText" placeholder="粘贴或输入知识点…&#10;例如：产品A的保修期为2年，支持全国联保。"></textarea>
+                </div>
+                <div class="text-input-group">
+                    <label>来源名称（可选）</label>
+                    <input type="text" id="kbSource" value="手动录入" placeholder="给这段知识起个名字">
+                </div>
+                <button class="btn-primary" onclick="uploadText()">
+                    添加到知识库
+                </button>
+            </div>
+
+            <!-- Stats Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon green">📊</div>
+                    <h3>知识库概览</h3>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-icon-lg purple">🗂</div>
+                    <div>
+                        <div class="stat-val" id="statCollection">—</div>
+                        <div class="stat-lbl">向量库名称</div>
+                    </div>
+                </div>
+                <hr class="stat-divider">
+                <button class="btn-primary" onclick="refreshStats()" style="background:var(--surface);color:var(--brand);border:1px solid var(--border);">
+                    🔄 刷新统计信息
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Log -->
+    <div class="log-section">
+        <h2>上传记录</h2>
+        <div class="log-list" id="logList">
+            <div class="log-empty">暂无上传记录</div>
+        </div>
+    </div>
+</main>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script>
+    const API_BASE = '/api';
+    const ALLOWED_TYPES = ['txt','md','csv','json','xml','html','log'];
+
+    let fileQueue = [];
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileQueueEl = document.getElementById('fileQueue');
+    const btnUploadAll = document.getElementById('btnUploadAll');
+    const queueCount = document.getElementById('queueCount');
+    const logList = document.getElementById('logList');
+    const toastContainer = document.getElementById('toastContainer');
+
+    // ==================== Drag & Drop ====================
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('drag-over');
+    });
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('drag-over');
+    });
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length > 0) {
+            addFiles(e.dataTransfer.files);
+        }
+    });
+
+    // ==================== File Queue Management ====================
+    function addFiles(files) {
+        for (const file of files) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!ALLOWED_TYPES.includes(ext)) {
+                showToast(`不支持的文件格式: .${ext}（${file.name}）`, 'error');
+                addLogEntry('warning', '格式不支持', `${file.name}（.${ext}）`);
+                continue;
+            }
+            if (fileQueue.find(f => f.name === file.name && f.size === file.size)) {
+                continue; // Skip duplicates
+            }
+            fileQueue.push(file);
+        }
+        renderQueue();
+        fileInput.value = '';
+    }
+
+    function removeFile(index) {
+        fileQueue.splice(index, 1);
+        renderQueue();
+    }
+
+    function renderQueue() {
+        if (fileQueue.length === 0) {
+            fileQueueEl.innerHTML = '<div class="log-empty">尚未选择文件</div>';
+            btnUploadAll.disabled = true;
+        } else {
+            fileQueueEl.innerHTML = fileQueue.map((f, i) => {
+                const icon = fileIcon(f.name);
+                const size = f.size < 1024 ? `${f.size} B` :
+                             f.size < 1024*1024 ? `${(f.size/1024).toFixed(1)} KB` :
+                             `${(f.size/(1024*1024)).toFixed(1)} MB`;
+                return `
+                    <div class="file-item">
+                        <span class="fi-icon">${icon}</span>
+                        <div class="fi-info">
+                            <div class="fi-name">${escapeHtml(f.name)}</div>
+                            <div class="fi-meta">${size} · ${f.type || '未知类型'}</div>
+                        </div>
+                        <button class="fi-remove" onclick="removeFile(${i})" title="移除">✕</button>
+                    </div>
+                `;
+            }).join('');
+            btnUploadAll.disabled = false;
+        }
+        queueCount.textContent = `${fileQueue.length} 个文件`;
+    }
+
+    function fileIcon(name) {
+        const ext = name.split('.').pop().toLowerCase();
+        const map = {
+            txt: '📝', md: '📘', csv: '📊', json: '📋',
+            xml: '📰', html: '🌐', log: '📜'
+        };
+        return map[ext] || '📎';
+    }
+
+    // ==================== Upload All Files ====================
+    async function uploadAllFiles() {
+        if (fileQueue.length === 0) return;
+
+        btnUploadAll.disabled = true;
+        btnUploadAll.textContent = '上传中…';
+
+        let successCount = 0, failCount = 0, skipCount = 0;
+
+        for (const file of fileQueue) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_BASE}/knowledge/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    if (data.success) {
+                        addLogEntry('success', file.name, data.result);
+                        successCount++;
+                    } else {
+                        addLogEntry('info', file.name, data.result);
+                        skipCount++;
+                    }
+                } else {
+                    addLogEntry('error', file.name, data.detail || '上传失败');
+                    failCount++;
+                }
+            } catch (err) {
+                addLogEntry('error', file.name, '网络错误: ' + err.message);
+                failCount++;
+            }
+        }
+
+        // Summary
+        const parts = [];
+        if (successCount > 0) parts.push(`${successCount} 成功`);
+        if (skipCount > 0) parts.push(`${skipCount} 跳过`);
+        if (failCount > 0) parts.push(`${failCount} 失败`);
+        const summary = parts.join(' · ');
+
+        if (failCount === 0 && skipCount === 0) {
+            showToast(`全部上传成功：${summary}`, 'success');
+        } else if (failCount > 0) {
+            showToast(`上传完成：${summary}`, 'error');
+        } else {
+            showToast(`上传完成：${summary}`, '');
+        }
+
+        fileQueue = [];
+        renderQueue();
+        btnUploadAll.textContent = '⬆ 上传全部文件';
+        refreshStats();
+    }
+
+    // ==================== Text Upload ====================
+    async function uploadText() {
+        const text = document.getElementById('kbText').value.trim();
+        if (!text) { showToast('请先输入文本内容', 'error'); return; }
+
+        const source = document.getElementById('kbSource').value.trim() || '手动录入';
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('filename', source);
+
+        try {
+            const res = await fetch(`${API_BASE}/knowledge/upload-text`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                addLogEntry('success', source, data.result);
+                showToast('知识已添加成功', 'success');
+                document.getElementById('kbText').value = '';
+                refreshStats();
+            } else if (res.ok && !data.success) {
+                addLogEntry('info', source, data.result);
+                showToast(data.result, '');
+            } else {
+                addLogEntry('error', source, data.detail || '添加失败');
+                showToast('添加失败', 'error');
+            }
+        } catch (err) {
+            addLogEntry('error', source, '网络错误: ' + err.message);
+            showToast('网络错误', 'error');
+        }
+    }
+
+    // ==================== Stats ====================
+    async function refreshStats() {
+        try {
+            const res = await fetch(`${API_BASE}/knowledge/stats`);
+            const data = await res.json();
+            document.getElementById('statCollection').textContent = data.collection_name;
+        } catch (err) { /* ignore */ }
+    }
+
+    // ==================== Log ====================
+    function addLogEntry(type, title, detail) {
+        // Remove empty placeholder
+        const empty = logList.querySelector('.log-empty');
+        if (empty) empty.remove();
+
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const icons = { success: '✅', info: 'ℹ️', warning: '⚠️', error: '❌' };
+
+        const div = document.createElement('div');
+        div.className = `log-item ${type}`;
+        div.innerHTML = `
+            <span class="log-icon">${icons[type] || '📌'}</span>
+            <div class="log-body">
+                <div class="log-title">${escapeHtml(title)}</div>
+                ${detail ? `<div class="log-detail">${escapeHtml(detail)}</div>` : ''}
+            </div>
+            <span class="log-time">${time}</span>
+        `;
+        logList.insertBefore(div, logList.firstChild);
+
+        // Keep max 50 entries
+        while (logList.children.length > 50) {
+            logList.lastChild.remove();
+        }
+    }
+
+    // ==================== Toast ====================
+    function showToast(msg, type) {
+        type = type || '';
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = msg;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
+    }
+
+    // ==================== Helpers ====================
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ==================== Init ====================
+    refreshStats();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能对话 — RAG 知识引擎</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           DESIGN SYSTEM — 知识引擎 Knowledge Engine
+           Inspired by library archives & paper texture.
+           ============================================================ */
+        :root {
+            /* Palette */
+            --ink: #1c1b1f;
+            --ink-muted: #5f5d66;
+            --ink-subtle: #94929e;
+            --paper: #faf8f5;
+            --paper-warm: #f4f0ea;
+            --surface: #ffffff;
+            --border: #e8e6e1;
+            --border-light: #f0ede8;
+
+            /* Brand — muted plum */
+            --brand: #5b4fcf;
+            --brand-dark: #4439b3;
+            --brand-light: #7e73e0;
+            --brand-ghost: #f3f1fe;
+            --brand-surface: #faf9ff;
+
+            /* Semantic */
+            --success: #2d6a4f;
+            --success-bg: #edf7f1;
+            --warning: #8a6d14;
+            --warning-bg: #fef9e7;
+            --error: #c1292e;
+            --error-bg: #fef2f2;
+
+            /* Typography */
+            --font-display: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+            --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                         'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+            /* Type scale */
+            --text-xs: 0.6875rem;    /* 11px */
+            --text-sm: 0.8125rem;    /* 13px */
+            --text-base: 0.9375rem;  /* 15px */
+            --text-md: 1.0625rem;    /* 17px */
+            --text-lg: 1.25rem;      /* 20px */
+            --text-xl: 1.5rem;       /* 24px */
+
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            --space-2xl: 48px;
+
+            /* Radius */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+            --radius-full: 9999px;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(28,27,31,0.04);
+            --shadow-md: 0 4px 16px rgba(28,27,31,0.06);
+            --shadow-lg: 0 12px 40px rgba(28,27,31,0.08);
+            --shadow-glow: 0 0 0 3px rgba(91,79,207,0.12);
+
+            /* Transitions */
+            --ease-out: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-spring: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--paper);
+            color: var(--ink);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ============================================================
+           NAVIGATION
+           ============================================================ */
+        .nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(255,255,255,0.82);
+            backdrop-filter: blur(16px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            padding: 0 var(--space-xl);
+        }
+        .nav-inner {
+            max-width: 1100px; margin: 0 auto;
+            display: flex; align-items: center; gap: var(--space-lg);
+            height: 56px;
+        }
+        .nav-brand {
+            display: flex; align-items: center; gap: 10px;
+            text-decoration: none; color: var(--ink);
+            font-family: var(--font-display);
+            font-weight: 700; font-size: var(--text-md);
+            letter-spacing: -0.01em;
+        }
+        .nav-brand .logo-mark {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--brand), var(--brand-light));
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 16px;
+        }
+        .nav-links {
+            display: flex; gap: 4px; margin-left: var(--space-xl);
+        }
+        .nav-link {
+            padding: 6px 14px; border-radius: var(--radius-sm);
+            text-decoration: none; font-size: var(--text-sm); font-weight: 500;
+            color: var(--ink-muted); transition: var(--ease-out);
+        }
+        .nav-link:hover { color: var(--ink); background: var(--paper-warm); }
+        .nav-link.active {
+            color: var(--brand); background: var(--brand-ghost); font-weight: 600;
+        }
+        .nav-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+
+        /* Session pill */
+        .session-pill {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 10px; border-radius: var(--radius-full);
+            background: var(--paper-warm); border: 1px solid var(--border);
+            font-size: var(--text-xs); color: var(--ink-muted);
+            transition: var(--ease-out);
+        }
+        .session-pill:hover { border-color: var(--brand-light); }
+        .session-pill label { font-weight: 600; white-space: nowrap; }
+        .session-pill input {
+            border: none; background: transparent; outline: none;
+            font-size: var(--text-xs); font-family: var(--font-mono);
+            color: var(--ink); width: 90px;
+        }
+
+        /* ============================================================
+           MAIN LAYOUT
+           ============================================================ */
+        .main {
+            max-width: 800px; margin: 0 auto;
+            display: flex; flex-direction: column;
+            height: calc(100vh - 56px);
+            padding: 0 var(--space-md);
+        }
+
+        /* ============================================================
+           EMPTY STATE
+           ============================================================ */
+        .empty-state {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; padding: var(--space-2xl);
+            gap: var(--space-lg);
+        }
+        .empty-state .hero-icon {
+            width: 72px; height: 72px;
+            background: linear-gradient(135deg, var(--brand-ghost), #ede9fe);
+            border-radius: var(--radius-xl);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 32px;
+        }
+        .empty-state h2 {
+            font-family: var(--font-display);
+            font-size: var(--text-xl); font-weight: 700;
+            color: var(--ink); letter-spacing: -0.02em;
+        }
+        .empty-state p {
+            color: var(--ink-muted); font-size: var(--text-sm);
+            max-width: 380px; line-height: 1.7;
+        }
+        .empty-state .hint-grid {
+            display: flex; gap: var(--space-md); flex-wrap: wrap;
+            justify-content: center; margin-top: var(--space-sm);
+        }
+        .hint-chip {
+            padding: 7px 16px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-full); font-size: var(--text-xs);
+            color: var(--ink-muted); cursor: pointer;
+            transition: var(--ease-out); white-space: nowrap;
+        }
+        .hint-chip:hover {
+            border-color: var(--brand-light); color: var(--brand);
+            box-shadow: var(--shadow-glow);
+        }
+
+        /* ============================================================
+           MESSAGE LIST
+           ============================================================ */
+        .messages {
+            flex: 1; overflow-y: auto; padding: var(--space-lg) 0;
+            display: flex; flex-direction: column; gap: var(--space-lg);
+            scroll-behavior: smooth;
+        }
+        .messages::-webkit-scrollbar { width: 4px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb {
+            background: var(--border); border-radius: 10px;
+        }
+        .messages::-webkit-scrollbar-thumb:hover { background: var(--ink-subtle); }
+
+        /* Message bubble */
+        .msg {
+            display: flex; gap: 12px;
+            animation: msgIn 0.3s ease-out;
+            max-width: 88%;
+        }
+        .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+        .msg.assistant { align-self: flex-start; }
+
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-avatar {
+            width: 34px; height: 34px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; flex-shrink: 0;
+        }
+        .msg.user .msg-avatar { background: var(--brand-ghost); }
+        .msg.assistant .msg-avatar { background: linear-gradient(135deg, var(--brand), var(--brand-light)); }
+
+        .msg-body { min-width: 0; }
+
+        .msg-bubble {
+            padding: 12px 18px; line-height: 1.65;
+            font-size: var(--text-base); word-break: break-word;
+        }
+        .msg.user .msg-bubble {
+            background: var(--brand);
+            color: #fff;
+            border-radius: var(--radius-lg) var(--radius-lg) 6px var(--radius-lg);
+        }
+        .msg.assistant .msg-bubble {
+            background: var(--surface);
+            color: var(--ink);
+            border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) 6px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+        .msg.assistant .msg-bubble p { margin-bottom: 0.6em; }
+        .msg.assistant .msg-bubble p:last-child { margin-bottom: 0; }
+        .msg.assistant .msg-bubble code {
+            background: var(--paper-warm); padding: 2px 6px;
+            border-radius: 4px; font-family: var(--font-mono);
+            font-size: 0.9em; color: var(--brand-dark);
+        }
+        .msg.assistant .msg-bubble pre {
+            background: var(--paper-warm); padding: 12px 16px;
+            border-radius: var(--radius-sm); overflow-x: auto;
+            font-family: var(--font-mono); font-size: var(--text-xs);
+            margin: 8px 0; line-height: 1.5;
+            border: 1px solid var(--border);
+        }
+        .msg-time {
+            font-size: var(--text-xs); color: var(--ink-subtle);
+            margin-top: 4px; padding: 0 4px;
+        }
+        .msg.user .msg-time { text-align: right; }
+
+        /* Typing indicator */
+        .typing-dots {
+            display: flex; gap: 4px; padding: 4px 0;
+        }
+        .typing-dots span {
+            width: 6px; height: 6px;
+            background: var(--ink-subtle); border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+
+        /* ============================================================
+           INPUT AREA
+           ============================================================ */
+        .input-area {
+            padding: var(--space-md) 0 var(--space-lg);
+            flex-shrink: 0;
+        }
+        .input-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            display: flex; align-items: flex-end; gap: var(--space-sm);
+            padding: 8px 12px;
+            transition: var(--ease-out);
+        }
+        .input-card:focus-within {
+            border-color: var(--brand-light);
+            box-shadow: var(--shadow-md), var(--shadow-glow);
+        }
+        .input-card textarea {
+            flex: 1; border: none; background: transparent;
+            padding: 8px 4px; font-size: var(--text-base);
+            font-family: var(--font-body); line-height: 1.5;
+            resize: none; outline: none; max-height: 120px;
+            color: var(--ink);
+        }
+        .input-card textarea::placeholder { color: var(--ink-subtle); }
+        .btn-send {
+            width: 40px; height: 40px; flex-shrink: 0;
+            border: none; border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+            color: #fff; cursor: pointer; font-size: 18px;
+            transition: var(--ease-spring);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-send:hover { transform: scale(1.06); }
+        .btn-send:active { transform: scale(0.95); }
+        .btn-send:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+        .input-hint { font-size: var(--text-xs); color: var(--ink-subtle); text-align: center; margin-top: 6px; }
+
+        /* ============================================================
+           BUTTONS (shared)
+           ============================================================ */
+        .btn-icon {
+            width: 34px; height: 34px; border: none;
+            background: transparent; color: var(--ink-muted);
+            border-radius: var(--radius-sm); cursor: pointer;
+            font-size: 16px; transition: var(--ease-out);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-icon:hover { background: var(--paper-warm); color: var(--ink); }
+
+        .btn-sm {
+            padding: 6px 14px; font-size: var(--text-xs); font-weight: 600;
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            background: var(--surface); color: var(--ink-muted);
+            cursor: pointer; transition: var(--ease-out);
+            font-family: var(--font-body);
+        }
+        .btn-sm:hover { border-color: var(--brand-light); color: var(--brand); }
+
+        /* ============================================================
+           TOAST
+           ============================================================ */
+        .toast-container {
+            position: fixed; top: 72px; right: 20px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .toast {
+            background: var(--surface); padding: 12px 18px;
+            border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+            font-size: var(--text-sm); border-left: 3px solid var(--brand);
+            animation: slideIn 0.3s ease-out; max-width: 360px;
+            line-height: 1.5;
+        }
+        .toast.error { border-left-color: var(--error); }
+        .toast.success { border-left-color: var(--success); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(24px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 640px) {
+            .nav { padding: 0 var(--space-md); }
+            .nav-links { display: none; }
+            .main { padding: 0 var(--space-sm); }
+            .msg { max-width: 95%; }
+            .msg-bubble { padding: 10px 14px; font-size: var(--text-sm); }
+            .input-card { padding: 6px 10px; }
+            .session-pill label { display: none; }
+            .session-pill input { width: 60px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAVIGATION
+     ============================================================ -->
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="/api/" class="nav-brand">
+            <span class="logo-mark">◈</span>
+            知识引擎
+        </a>
+        <div class="nav-links">
+            <a href="/api/chat" class="nav-link active">对话</a>
+            <a href="/api/upload" class="nav-link">知识库</a>
+        </div>
+        <div class="nav-actions">
+            <div class="session-pill">
+                <label>会话</label>
+                <input type="text" id="sessionId" value="default" placeholder="会话ID">
+            </div>
+            <button class="btn-icon" title="清空对话" onclick="clearChat()">🗑</button>
+        </div>
+    </div>
+</nav>
+
+<!-- ============================================================
+     MAIN CONTENT
+     ============================================================ -->
+<main class="main" id="mainContent">
+    <!-- Empty state (shown when no messages) -->
+    <div class="empty-state" id="emptyState">
+        <div class="hero-icon">◈</div>
+        <h2>有什么我可以帮助你的？</h2>
+        <p>知识引擎已加载知识库，可以回答基于文档的问题。每一次对话都是一次检索之旅。</p>
+        <div class="hint-grid">
+            <span class="hint-chip" onclick="quickAsk('如何选择合适的尺码？')">如何选择合适的尺码？</span>
+            <span class="hint-chip" onclick="quickAsk('洗涤养护有哪些注意事项？')">洗涤养护有哪些注意事项？</span>
+            <span class="hint-chip" onclick="quickAsk('颜色搭配有什么建议？')">颜色搭配有什么建议？</span>
+        </div>
+    </div>
+
+    <!-- Messages container -->
+    <div class="messages" id="messages" style="display:none;"></div>
+
+    <!-- Input area -->
+    <div class="input-area">
+        <div class="input-card">
+            <textarea id="userInput" rows="1" placeholder="输入你的问题… Enter 发送 / Shift+Enter 换行"
+                      onkeydown="handleKeyDown(event)"></textarea>
+            <button class="btn-send" onclick="sendMessage()" title="发送">↗</button>
+        </div>
+        <p class="input-hint">基于 RAG 检索增强生成 · 回答由知识库驱动</p>
+    </div>
+</main>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============================================================
+     SCRIPTS
+     ============================================================ -->
+<script>
+    const API_BASE = '/api';
+    const messagesEl = document.getElementById('messages');
+    const emptyState = document.getElementById('emptyState');
+    const inputEl = document.getElementById('userInput');
+    const sessionIdEl = document.getElementById('sessionId');
+    const toastContainer = document.getElementById('toastContainer');
+
+    let messageCount = 0;
+
+    // ==================== Auto-resize textarea ====================
+    inputEl.addEventListener('input', () => {
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+    });
+
+    // ==================== Keyboard ====================
+    function handleKeyDown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    // ==================== Quick ask (hint chips) ====================
+    function quickAsk(text) {
+        inputEl.value = text;
+        sendMessage();
+    }
+
+    // ==================== Chat: Send Message ====================
+    async function sendMessage() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+
+        const sessionId = sessionIdEl.value.trim() || 'default';
+
+        // Hide empty state on first message
+        if (messageCount === 0) {
+            emptyState.style.display = 'none';
+            messagesEl.style.display = 'flex';
+        }
+
+        addMessage('user', text);
+        messageCount++;
+        inputEl.value = '';
+        inputEl.style.height = 'auto';
+
+        const typingEl = addTypingIndicator();
+        scrollToBottom();
+
+        try {
+            const response = await fetch(`${API_BASE}/qa/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: text, session_id: sessionId })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || '请求失败');
+            }
+
+            const data = await response.json();
+            typingEl.remove();
+            addMessage('assistant', data.answer);
+            messageCount++;
+        } catch (err) {
+            typingEl.remove();
+            addMessage('assistant', '抱歉，服务暂时不可用：' + err.message);
+            messageCount++;
+        }
+
+        scrollToBottom();
+    }
+
+    // ==================== Chat: Messages ====================
+    function addMessage(role, content) {
+        const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const div = document.createElement('div');
+        div.className = `msg ${role}`;
+
+        const avatarEmoji = role === 'user' ? '👤' : '◈';
+        // Simple markdown-like rendering for code blocks and inline code
+        const rendered = renderContent(content);
+
+        div.innerHTML = `
+            <div class="msg-avatar">${avatarEmoji}</div>
+            <div class="msg-body">
+                <div class="msg-bubble">${rendered}</div>
+                <div class="msg-time">${time}</div>
+            </div>
+        `;
+        messagesEl.appendChild(div);
+    }
+
+    function addTypingIndicator() {
+        const div = document.createElement('div');
+        div.className = 'msg assistant';
+        div.id = 'typing-indicator';
+        div.innerHTML = `
+            <div class="msg-avatar">◈</div>
+            <div class="msg-body">
+                <div class="msg-bubble">
+                    <div class="typing-dots"><span></span><span></span><span></span></div>
+                </div>
+            </div>
+        `;
+        messagesEl.appendChild(div);
+        return div;
+    }
+
+    // ==================== Simple markdown renderer ====================
+    function renderContent(text) {
+        // Escape HTML first
+        const escaped = escapeHtml(text);
+        // Code blocks: ``` ... ```
+        let html = escaped.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+            return `<pre><code>${code.trim()}</code></pre>`;
+        });
+        // Inline code: `...`
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // Bold: **...**
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        // Newlines to <br> (but not inside pre tags)
+        html = html.replace(/\n/g, '<br>');
+        return html;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ==================== Clear Chat ====================
+    async function clearChat() {
+        if (messageCount === 0) return;
+        if (!confirm('确定清空当前会话的对话历史吗？')) return;
+
+        const sessionId = sessionIdEl.value.trim() || 'default';
+        try {
+            await fetch(`${API_BASE}/qa/history`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId })
+            });
+            messagesEl.innerHTML = '';
+            messagesEl.style.display = 'none';
+            emptyState.style.display = 'flex';
+            messageCount = 0;
+            showToast('对话历史已清空', 'success');
+        } catch (err) {
+            showToast('清除失败: ' + err.message, 'error');
+        }
+    }
+
+    // ==================== Helpers ====================
+    function scrollToBottom() {
+        requestAnimationFrame(() => {
+            if (messagesEl.style.display !== 'none') {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+        });
+    }
+
+    function showToast(msg, type) {
+        type = type || '';
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = msg;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3200);
+    }
+</script>
+
+</body>
+</html>
