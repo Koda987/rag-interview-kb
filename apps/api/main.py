@@ -21,10 +21,11 @@ app = FastAPI(
 )
 
 # ---------- CORS 中间件 ----------
+# 注：allow_origins=["*"] 与 allow_credentials=True 组合会被浏览器拒绝
+# （通配符源不允许携带凭证），故不开启 credentials
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -63,7 +64,7 @@ def upload_page():
     return FileResponse(os.path.join(STATIC_DIR, 'upload.html'))
 
 
-@app.get("/api/info", tags=["⚙️ 系统"])
+@app.get("/info", tags=["⚙️ 系统"])
 def api_info():
     """API 信息"""
     return {
