@@ -163,10 +163,12 @@ class KnowledgeBaseService:
         last_updated = None
         try:
             from apps.core.models import KnowledgeDocument
+            from django.utils import timezone
             documents = KnowledgeDocument.objects.count()
             latest = KnowledgeDocument.objects.order_by('-created_at').first()
             if latest:
-                last_updated = latest.created_at.strftime('%Y-%m-%d %H:%M')
+                # created_at 存的是 UTC，展示前转本地时区
+                last_updated = timezone.localtime(latest.created_at).strftime('%Y-%m-%d %H:%M')
         except Exception as e:
             logger.warning("读取 Django 上传记录失败: %s", e)
         return {"chunks": chunks, "documents": documents, "last_updated": last_updated}
