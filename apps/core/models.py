@@ -1,7 +1,8 @@
 """
 Django Models —— RAG 项目的数据库模型。
 
-存储知识库文件记录和对话记录，方便在 Django Admin 中管理。
+知识库文件上传记录，方便在 Django Admin 中管理。
+对话历史不走数据库（按会话存 JSON 文件，见 file_history_store.py）。
 """
 from django.db import models
 
@@ -22,45 +23,3 @@ class KnowledgeDocument(models.Model):
 
     def __str__(self):
         return f"{self.filename} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
-
-
-class ChatSession(models.Model):
-    """聊天会话记录"""
-    session_id = models.CharField(max_length=128, unique=True, verbose_name="会话ID")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
-    is_active = models.BooleanField(default=True, verbose_name="是否活跃")
-
-    class Meta:
-        verbose_name = "聊天会话"
-        verbose_name_plural = verbose_name
-        ordering = ['-updated_at']
-
-    def __str__(self):
-        return f"会话 {self.session_id}"
-
-
-class ChatMessage(models.Model):
-    """聊天消息记录"""
-    ROLE_CHOICES = [
-        ('user', '用户'),
-        ('assistant', 'AI助手'),
-    ]
-
-    session = models.ForeignKey(
-        ChatSession,
-        on_delete=models.CASCADE,
-        related_name='messages',
-        verbose_name="所属会话"
-    )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, verbose_name="角色")
-    content = models.TextField(verbose_name="消息内容")
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-
-    class Meta:
-        verbose_name = "聊天消息"
-        verbose_name_plural = verbose_name
-        ordering = ['created_at']
-
-    def __str__(self):
-        return f"[{self.role}] {self.content[:50]}"
