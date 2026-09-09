@@ -4,6 +4,7 @@ RAG 问答服务 —— 封装 LangChain RAG 链。
 基于 rag.py，提供单例模式。
 支持流式输出（stream）和非流式输出（invoke）。
 """
+import logging
 import threading
 from typing import Generator, Optional
 from langchain_core.documents import Document
@@ -15,6 +16,8 @@ from langchain_openai import ChatOpenAI
 from file_history_store import get_history
 from .vector_store_service import vector_store_service
 import config_data as config
+
+logger = logging.getLogger(__name__)
 
 
 class RagService:
@@ -59,7 +62,9 @@ class RagService:
                 return "无相关参考资料"
             formatted_str = ""
             for doc in docs:
-                formatted_str += f"文档片段：{doc.page_content}\n文档元数据：{doc.metadata}\n\n"
+                # 只携带 source 供模型引用来源；完整 metadata（时间/操作者）
+                # 对回答无益且浪费 token
+                formatted_str += f"文档片段：{doc.page_content}\n来源：{doc.metadata.get('source', '未知')}\n\n"
             return formatted_str
 
         def format_for_retriever(value: dict) -> str:
@@ -139,7 +144,8 @@ class RagService:
                 role = "user" if msg.type == "human" else "assistant"
                 result.append({"role": role, "content": msg.content})
             return result
-        except Exception:
+        except Exception as e:
+            logger.warning("读取会话 %s 的历史失败: %s", session_id, e)
             return []
 
     def clear_history(self, session_id: str = "default") -> bool:
@@ -148,7 +154,8 @@ class RagService:
             history_obj = get_history(session_id)
             history_obj.clear()
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning("清除会话 %s 的历史失败: %s", session_id, e)
             return False
 
 
