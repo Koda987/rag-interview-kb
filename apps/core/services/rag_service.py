@@ -14,6 +14,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 from file_history_store import get_history
+import file_history_store
 from .vector_store_service import vector_store_service
 import config_data as config
 
@@ -157,6 +158,15 @@ class RagService:
         except Exception as e:
             logger.warning("清除会话 %s 的历史失败: %s", session_id, e)
             return False
+
+    def get_sessions(self) -> list[dict]:
+        """
+        列出全部历史会话的摘要（按最后活跃倒序）。
+
+        Returns:
+            [{session_id, title, message_count, updated_at}, ...]
+        """
+        return file_history_store.list_sessions()
 
 
 # 全局单例

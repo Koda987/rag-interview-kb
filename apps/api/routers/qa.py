@@ -4,6 +4,7 @@
 接口：
     POST  /qa/ask          - 非流式问答
     POST  /qa/stream       - 流式问答（SSE）
+    GET   /qa/sessions     - 会话列表
     GET   /qa/history      - 获取对话历史
     DELETE /qa/history     - 清除对话历史
 """
@@ -15,6 +16,7 @@ from apps.api.schemas import (
     QARequest, QAResponse,
     ChatHistoryResponse, ChatHistoryItem,
     ClearHistoryRequest, ClearHistoryResponse,
+    SessionListResponse,
 )
 from apps.core.services import rag_service
 
@@ -72,6 +74,12 @@ def ask_stream(request: QARequest):
             "X-Accel-Buffering": "no",
         }
     )
+
+
+@router.get("/sessions", response_model=SessionListResponse, summary="会话列表")
+def list_sessions():
+    """列出全部历史会话（标题、消息条数、最后活跃时间，按活跃倒序）"""
+    return SessionListResponse(sessions=rag_service.get_sessions())
 
 
 @router.get("/history", response_model=ChatHistoryResponse, summary="获取对话历史")

@@ -137,22 +137,6 @@
         }
         .nav-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
 
-        /* Session pill */
-        .session-pill {
-            display: flex; align-items: center; gap: 6px;
-            padding: 5px 10px; border-radius: var(--radius-full);
-            background: var(--paper-warm); border: 1px solid var(--border);
-            font-size: var(--text-xs); color: var(--ink-muted);
-            transition: var(--ease-out);
-        }
-        .session-pill:hover { border-color: var(--brand-light); }
-        .session-pill label { font-weight: 600; white-space: nowrap; }
-        .session-pill input {
-            border: none; background: transparent; outline: none;
-            font-size: var(--text-xs); font-family: var(--font-mono);
-            color: var(--ink); width: 90px;
-        }
-
         /* ============================================================
            MAIN LAYOUT
            ============================================================ */
@@ -382,6 +366,85 @@
         }
 
         /* ============================================================
+           SESSION DRAWER（会话列表抽屉）
+           ============================================================ */
+        .drawer-overlay {
+            position: fixed; inset: 0; z-index: 200;
+            background: rgba(28,27,31,0.35);
+            opacity: 0; visibility: hidden;
+            transition: var(--ease-out);
+        }
+        .drawer {
+            position: fixed; top: 0; left: 0; bottom: 0; z-index: 201;
+            width: 300px; max-width: 85vw;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column;
+        }
+        body.drawer-open .drawer { transform: translateX(0); }
+        body.drawer-open .drawer-overlay { opacity: 1; visibility: visible; }
+
+        .drawer-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .drawer-header .dh-title {
+            font-size: var(--text-base); font-weight: 700;
+        }
+        .drawer-header .dh-close {
+            width: 28px; height: 28px; border: none; border-radius: var(--radius-sm);
+            background: transparent; color: var(--ink-muted); cursor: pointer;
+            font-size: 14px; transition: var(--ease-out);
+        }
+        .drawer-header .dh-close:hover { background: var(--paper-warm); color: var(--ink); }
+
+        .drawer-current {
+            padding: 10px 16px;
+            font-size: var(--text-xs); color: var(--ink-muted);
+            border-bottom: 1px solid var(--border-light);
+            background: var(--paper);
+        }
+        .drawer-current code { font-family: var(--font-mono); color: var(--brand-dark); }
+
+        .drawer-list { flex: 1; overflow-y: auto; padding: 8px; }
+        .drawer-list::-webkit-scrollbar { width: 4px; }
+        .drawer-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+        .session-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; border-radius: var(--radius-sm);
+            cursor: pointer; transition: var(--ease-out);
+        }
+        .session-item:hover { background: var(--paper-warm); }
+        .session-item.active { background: var(--brand-ghost); }
+        .session-item .si-body { flex: 1; min-width: 0; }
+        .session-item .si-title {
+            font-size: var(--text-sm); font-weight: 600; color: var(--ink);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .session-item .si-meta {
+            font-size: var(--text-xs); color: var(--ink-subtle); margin-top: 2px;
+        }
+        .session-item .si-del {
+            width: 26px; height: 26px; flex-shrink: 0;
+            border: none; background: transparent; border-radius: var(--radius-sm);
+            color: var(--ink-subtle); cursor: pointer; font-size: 13px;
+            opacity: 0; transition: var(--ease-out);
+        }
+        .session-item:hover .si-del { opacity: 1; }
+        .session-item .si-del:hover { background: var(--error-bg); color: var(--error); }
+
+        .drawer-empty {
+            text-align: center; color: var(--ink-subtle);
+            padding: var(--space-xl) var(--space-md); font-size: var(--text-sm);
+            line-height: 1.8;
+        }
+
+        /* ============================================================
            RESPONSIVE
            ============================================================ */
         @media (max-width: 640px) {
@@ -391,8 +454,6 @@
             .msg { max-width: 95%; }
             .msg-bubble { padding: 10px 14px; font-size: var(--text-sm); }
             .input-card { padding: 6px 10px; }
-            .session-pill label { display: none; }
-            .session-pill input { width: 60px; }
         }
     </style>
 </head>
@@ -412,12 +473,9 @@
             <a href="/api/upload" class="nav-link">知识库</a>
         </div>
         <div class="nav-actions">
-            <div class="session-pill" title="会话 ID 用于隔离不同用户的对话记录，改完按回车或点别处生效">
-                <label>会话 ID</label>
-                <input type="text" id="sessionId" value="default" placeholder="会话ID">
-            </div>
-            <button class="btn-sm" title="生成一个新的会话 ID，从空白对话开始" onclick="newSession()">✚ 新会话</button>
-            <button class="btn-danger" title="清空当前会话的全部对话历史" onclick="clearChat()">清空对话</button>
+            <button class="btn-sm" title="查看、切换、删除历史会话" onclick="openDrawer()">📋 历史会话</button>
+            <button class="btn-sm" title="开启一个空白对话" onclick="newSession()">✚ 新会话</button>
+            <button class="btn-danger" title="删除当前会话的全部对话记录" onclick="clearChat()">清空对话</button>
         </div>
     </div>
 </nav>
@@ -452,6 +510,19 @@
     </div>
 </main>
 
+<!-- ============================================================
+     SESSION DRAWER（会话列表抽屉）
+     ============================================================ -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="sessionDrawer" aria-label="会话列表">
+    <div class="drawer-header">
+        <span class="dh-title">📋 会话列表</span>
+        <button class="dh-close" onclick="closeDrawer()" title="关闭（Esc）">✕</button>
+    </div>
+    <div class="drawer-current">当前会话：<code id="currentSessionLabel">—</code></div>
+    <div class="drawer-list" id="sessionList"></div>
+</aside>
+
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
 
@@ -463,10 +534,12 @@
     const messagesEl = document.getElementById('messages');
     const emptyState = document.getElementById('emptyState');
     const inputEl = document.getElementById('userInput');
-    const sessionIdEl = document.getElementById('sessionId');
+    const sessionList = document.getElementById('sessionList');
+    const currentSessionLabel = document.getElementById('currentSessionLabel');
     const toastContainer = document.getElementById('toastContainer');
 
     let messageCount = 0;
+    let currentSessionId = 'default';
 
     // ==================== Auto-resize textarea ====================
     inputEl.addEventListener('input', () => {
@@ -496,8 +569,6 @@
         const btnSend = document.getElementById('btnSend');
         if (btnSend.disabled) return;  // 流式回答进行中，防重复发送
 
-        const sessionId = sessionIdEl.value.trim() || 'default';
-
         // Hide empty state on first message
         if (messageCount === 0) {
             emptyState.style.display = 'none';
@@ -523,7 +594,7 @@
             const response = await fetch(`${API_BASE}/qa/stream`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, session_id: sessionId })
+                body: JSON.stringify({ question: text, session_id: currentSessionId })
             });
 
             if (!response.ok) {
@@ -596,6 +667,7 @@
 
         btnSend.disabled = false;
         btnSend.textContent = '发送';
+        loadSessions();  // 首条消息决定会话标题，问答后静默刷新列表
         scrollToBottom();
     }
 
@@ -677,19 +749,19 @@
     // ==================== Clear Chat ====================
     async function clearChat() {
         if (messageCount === 0) return;
-        if (!confirm('确定清空当前会话的对话历史吗？')) return;
+        if (!confirm('确定删除当前会话的全部对话记录吗？')) return;
 
-        const sessionId = sessionIdEl.value.trim() || 'default';
         try {
             await fetch(`${API_BASE}/qa/history`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ session_id: sessionId })
+                body: JSON.stringify({ session_id: currentSessionId })
             });
             resetConversationView();
-            showToast('对话历史已清空', 'success');
+            loadSessions();  // 会话文件已删除，列表同步移除
+            showToast('对话历史已删除', 'success');
         } catch (err) {
-            showToast('清除失败: ' + err.message, 'error');
+            showToast('删除失败: ' + err.message, 'error');
         }
     }
 
@@ -704,16 +776,16 @@
     // ==================== New session ====================
     function newSession() {
         const id = 's-' + Math.random().toString(36).slice(2, 8);
-        sessionIdEl.value = id;
+        setCurrentSession(id);
         resetConversationView();
-        showToast('已切换到新会话：' + id, '');
+        closeDrawer();
+        showToast('已开启新会话', '');
     }
 
     // ==================== History restore ====================
     async function loadHistory() {
-        const sessionId = sessionIdEl.value.trim() || 'default';
         try {
-            const res = await fetch(`${API_BASE}/qa/history?session_id=${encodeURIComponent(sessionId)}`);
+            const res = await fetch(`${API_BASE}/qa/history?session_id=${encodeURIComponent(currentSessionId)}`);
             if (!res.ok) return;
             const data = await res.json();
             if (!data.messages || data.messages.length === 0) return;
@@ -752,15 +824,89 @@
         }, 3200);
     }
 
-    // ==================== Init ====================
-    // 页面加载：恢复当前会话的历史（后端按 session 持久化了对话）
-    loadHistory();
+    // ==================== Session state ====================
+    function setCurrentSession(id) {
+        currentSessionId = id;
+        try { localStorage.setItem('rag-last-session', id); } catch (e) { /* 隐私模式等场景忽略 */ }
+        currentSessionLabel.textContent = id;
+    }
 
-    // 切换会话 ID：切换到对应会话的历史
-    sessionIdEl.addEventListener('change', () => {
-        resetConversationView();
-        loadHistory();
+    // ==================== Session drawer ====================
+    function openDrawer() {
+        document.body.classList.add('drawer-open');
+        loadSessions();
+    }
+
+    function closeDrawer() {
+        document.body.classList.remove('drawer-open');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDrawer();
     });
+
+    async function loadSessions() {
+        try {
+            const res = await fetch(`${API_BASE}/qa/sessions`);
+            if (!res.ok) return;
+            const data = await res.json();
+            renderSessions(data.sessions || []);
+        } catch (err) {
+            // 列表加载失败不打断聊天
+        }
+    }
+
+    function renderSessions(sessions) {
+        if (sessions.length === 0) {
+            sessionList.innerHTML =
+                '<div class="drawer-empty">暂无历史会话<br>发送第一条消息后会自动出现在这里</div>';
+            return;
+        }
+        sessionList.innerHTML = sessions.map(s => `
+            <div class="session-item ${s.session_id === currentSessionId ? 'active' : ''}"
+                 onclick="switchSession('${s.session_id}')" title="${escapeHtml(s.title)}">
+                <div class="si-body">
+                    <div class="si-title">${escapeHtml(s.title)}</div>
+                    <div class="si-meta">${s.message_count} 条 · ${s.updated_at}</div>
+                </div>
+                <button class="si-del" title="删除该会话"
+                        onclick="event.stopPropagation(); deleteSession('${s.session_id}')">✕</button>
+            </div>
+        `).join('');
+    }
+
+    async function switchSession(id) {
+        if (id === currentSessionId) { closeDrawer(); return; }
+        setCurrentSession(id);
+        resetConversationView();
+        closeDrawer();
+        loadHistory();
+    }
+
+    async function deleteSession(id) {
+        if (!confirm(`确定删除会话「${id}」吗？该操作不可恢复。`)) return;
+        try {
+            await fetch(`${API_BASE}/qa/history`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: id })
+            });
+            if (id === currentSessionId) {
+                resetConversationView();
+            }
+            loadSessions();
+            showToast('会话已删除', 'success');
+        } catch (err) {
+            showToast('删除失败: ' + err.message, 'error');
+        }
+    }
+
+    // ==================== Init ====================
+    // 恢复上次使用的会话（没有则 default），加载其历史
+    let lastSession = 'default';
+    try { lastSession = localStorage.getItem('rag-last-session') || 'default'; } catch (e) {}
+    setCurrentSession(lastSession);
+    loadHistory();
 </script>
 
 </body>

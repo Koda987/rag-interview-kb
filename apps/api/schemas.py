@@ -42,6 +42,19 @@ class ClearHistoryResponse(BaseModel):
     message: str
 
 
+class SessionSummary(BaseModel):
+    """会话摘要项"""
+    session_id: str = Field(..., description="会话ID")
+    title: str = Field(..., description="会话标题（取首条用户提问，截断显示）")
+    message_count: int = Field(..., description="消息条数")
+    updated_at: str = Field(..., description="最后活跃时间")
+
+
+class SessionListResponse(BaseModel):
+    """会话列表响应"""
+    sessions: list[SessionSummary]
+
+
 # ===================== 知识库相关 =====================
 
 class KnowledgeUploadResponse(BaseModel):
