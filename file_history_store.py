@@ -1,11 +1,15 @@
 import json
 import os
+import re
 from datetime import datetime
 from typing import Sequence
 
 import config_data as config
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import BaseMessage, message_to_dict, messages_from_dict
+
+# 会话 ID 直接拼进文件路径，只允许安全字符，防止路径穿越（如 ../xx 写到目录外）
+SESSION_ID_PATTERN = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 
 
 def get_history(session_id):
@@ -24,7 +28,7 @@ def list_sessions() -> list[dict]:
 
     for name in os.listdir(config.history_directory):
         path = os.path.join(config.history_directory, name)
-        if not os.path.isfile(path):
+        if not os.path.isfile(path) or not SESSION_ID_PATTERN.fullmatch(name):
             continue
         try:
             history = FileChatMessageHistory(name, config.history_directory)
@@ -52,6 +56,11 @@ def list_sessions() -> list[dict]:
 
 class FileChatMessageHistory(BaseChatMessageHistory):
     def __init__(self, session_id, storage_path):
+        if not SESSION_ID_PATTERN.fullmatch(session_id):
+            raise ValueError(
+                f"非法会话 ID: {session_id!r}（仅允许字母/数字/下划线/连字符，长度 1-64）"
+            )
+
         self.session_id = session_id        # 会话id
         self.storage_path = storage_path    # 不同会话id的存储文件，所在的文件夹路径
         # 完整的文件路径

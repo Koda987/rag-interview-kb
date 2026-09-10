@@ -9,6 +9,7 @@
     DELETE /qa/history     - 清除对话历史
 """
 import json
+import re
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -22,6 +23,18 @@ from apps.core.services import rag_service
 
 router = APIRouter()
 
+# 与存储层 file_history_store.SESSION_ID_PATTERN 保持一致
+SESSION_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
+
+
+def _validate_session_id(session_id: str) -> None:
+    """会话 ID 最终会拼进文件路径，非法值可能造成路径穿越"""
+    if not SESSION_ID_RE.fullmatch(session_id):
+        raise HTTPException(
+            status_code=400,
+            detail="非法会话 ID：仅允许字母、数字、下划线、连字符，长度 1-64",
+        )
+
 
 @router.post("/ask", response_model=QAResponse, summary="非流式问答")
 def ask(request: QARequest):
@@ -32,6 +45,7 @@ def ask(request: QARequest):
     """
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="问题不能为空")
+    _validate_session_id(request.session_id)
 
     try:
         answer = rag_service.invoke(request.question, request.session_id)
@@ -55,6 +69,7 @@ def ask_stream(request: QARequest):
     """
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="问题不能为空")
+    _validate_session_id(request.session_id)  # 流式一旦开始就无法再返回 400，必须提前校验
 
     def generate():
         try:
@@ -85,6 +100,7 @@ def list_sessions():
 @router.get("/history", response_model=ChatHistoryResponse, summary="获取对话历史")
 def get_history(session_id: str = "default"):
     """获取指定会话的对话历史记录"""
+    _validate_session_id(session_id)
     messages_data = rag_service.get_history(session_id)
     messages = [
         ChatHistoryItem(role=m["role"], content=m["content"])
@@ -96,6 +112,7 @@ def get_history(session_id: str = "default"):
 @router.delete("/history", response_model=ClearHistoryResponse, summary="清除对话历史")
 def clear_history(request: ClearHistoryRequest):
     """清除指定会话的对话历史"""
+    _validate_session_id(request.session_id)
     success = rag_service.clear_history(request.session_id)
     return ClearHistoryResponse(
         success=success,
