@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能对话 — RAG 知识引擎</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%235b4fcf'/%3E%3Ctext x='50' y='70' font-size='55' text-anchor='middle' fill='white'%3E%E2%97%88%3C/text%3E%3C/svg%3E">
     <style>
         /* ============================================================
            DESIGN SYSTEM — 知识引擎 Knowledge Engine
@@ -39,7 +37,10 @@
             --error-bg: #fef2f2;
 
             /* Typography */
-            --font-display: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+            /* 标题沿用系统字族：原先依赖 Google Fonts 的衬线体，
+               国内加载失败会回退宋体，观感全毁 */
+            --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                            'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
             --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
                          'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
             --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -322,10 +323,11 @@
         }
         .input-card textarea::placeholder { color: var(--ink-subtle); }
         .btn-send {
-            width: 40px; height: 40px; flex-shrink: 0;
+            height: 40px; padding: 0 18px; flex-shrink: 0;
             border: none; border-radius: var(--radius-sm);
             background: linear-gradient(135deg, var(--brand), var(--brand-dark));
-            color: #fff; cursor: pointer; font-size: 18px;
+            color: #fff; cursor: pointer; font-size: var(--text-sm); font-weight: 600;
+            font-family: var(--font-body); letter-spacing: 0.02em;
             transition: var(--ease-spring);
             display: flex; align-items: center; justify-content: center;
         }
@@ -337,15 +339,6 @@
         /* ============================================================
            BUTTONS (shared)
            ============================================================ */
-        .btn-icon {
-            width: 34px; height: 34px; border: none;
-            background: transparent; color: var(--ink-muted);
-            border-radius: var(--radius-sm); cursor: pointer;
-            font-size: 16px; transition: var(--ease-out);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .btn-icon:hover { background: var(--paper-warm); color: var(--ink); }
-
         .btn-sm {
             padding: 6px 14px; font-size: var(--text-xs); font-weight: 600;
             border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -354,6 +347,18 @@
             font-family: var(--font-body);
         }
         .btn-sm:hover { border-color: var(--brand-light); color: var(--brand); }
+
+        /* 危险操作按钮（清空对话）：默认克制，悬停时警示 */
+        .btn-danger {
+            padding: 6px 14px; font-size: var(--text-xs); font-weight: 600;
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            background: var(--surface); color: var(--ink-muted);
+            cursor: pointer; transition: var(--ease-out);
+            font-family: var(--font-body);
+        }
+        .btn-danger:hover {
+            border-color: var(--error); color: var(--error); background: var(--error-bg);
+        }
 
         /* ============================================================
            TOAST
@@ -407,11 +412,12 @@
             <a href="/api/upload" class="nav-link">知识库</a>
         </div>
         <div class="nav-actions">
-            <div class="session-pill">
-                <label>会话</label>
+            <div class="session-pill" title="会话 ID 用于隔离不同用户的对话记录，改完按回车或点别处生效">
+                <label>会话 ID</label>
                 <input type="text" id="sessionId" value="default" placeholder="会话ID">
             </div>
-            <button class="btn-icon" title="清空对话" onclick="clearChat()">🗑</button>
+            <button class="btn-sm" title="生成一个新的会话 ID，从空白对话开始" onclick="newSession()">✚ 新会话</button>
+            <button class="btn-danger" title="清空当前会话的全部对话历史" onclick="clearChat()">清空对话</button>
         </div>
     </div>
 </nav>
@@ -440,7 +446,7 @@
         <div class="input-card">
             <textarea id="userInput" rows="1" placeholder="输入你的问题… Enter 发送 / Shift+Enter 换行"
                       onkeydown="handleKeyDown(event)"></textarea>
-            <button class="btn-send" onclick="sendMessage()" title="发送">↗</button>
+            <button class="btn-send" id="btnSend" onclick="sendMessage()" title="发送（Enter）">发送</button>
         </div>
         <p class="input-hint">基于 RAG 检索增强生成 · 回答由知识库驱动</p>
     </div>
@@ -487,6 +493,9 @@
         const text = inputEl.value.trim();
         if (!text) return;
 
+        const btnSend = document.getElementById('btnSend');
+        if (btnSend.disabled) return;  // 流式回答进行中，防重复发送
+
         const sessionId = sessionIdEl.value.trim() || 'default';
 
         // Hide empty state on first message
@@ -499,6 +508,10 @@
         messageCount++;
         inputEl.value = '';
         inputEl.style.height = 'auto';
+
+        // 流式期间禁用发送，避免并发两路回答
+        btnSend.disabled = true;
+        btnSend.textContent = '回答中…';
 
         const typingEl = addTypingIndicator();
         scrollToBottom();
@@ -581,6 +594,8 @@
             }
         }
 
+        btnSend.disabled = false;
+        btnSend.textContent = '发送';
         scrollToBottom();
     }
 
@@ -684,6 +699,14 @@
         messagesEl.style.display = 'none';
         emptyState.style.display = 'flex';
         messageCount = 0;
+    }
+
+    // ==================== New session ====================
+    function newSession() {
+        const id = 's-' + Math.random().toString(36).slice(2, 8);
+        sessionIdEl.value = id;
+        resetConversationView();
+        showToast('已切换到新会话：' + id, '');
     }
 
     // ==================== History restore ====================
