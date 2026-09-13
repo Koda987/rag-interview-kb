@@ -3,6 +3,7 @@ chat_history/
 chroma_db/
 md5.text
 db.sqlite3
+experiments/chroma_tmp/
 
 # ===== 密钥与本地配置 =====
 .env

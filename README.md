@@ -109,13 +109,15 @@ python run.py --port 8000
 | fix | SSE 流式帧 JSON 包装 | 文本内含换行符会破坏 `data:` 帧分隔，导致前端解析错乱 |
 | 安全 | session_id 正则白名单校验（存储层 + 路由层双重） | session_id 直接拼进文件路径，`../xx` 可路径穿越写到目录外 |
 | style | 字体本地化、按钮文字化、统计卡三列化、favicon | Google Fonts 国内加载失败回退宋体；裸图标按钮语义不明 |
+| 实验 | chunk 参数扫描（6 组 × 16 题）：**300/50 实测最优**（hit@1 69%），overlap 贡献 +7pp，小块跌破随机基线 | 用数据替代默认参数；完整报告见 experiments/results.md |
 
 ## 🔬 后续计划
 
 | 事项 | 说明 |
 |---|---|
-| chunk_size / overlap 对比实验 | 用评估集数据代替"默认参数"，量化检索质量 |
-| 检索质量评估集 | 构造测试问题集，产出命中率报告 |
+| chunk 实验扩充 | ✅ 已完成 6 组 × 16 题扫描（experiments/results.md）；知识库换域/扩充语料后重跑 |
+| 评估集扩充 | 已建 16 题评估集（experiments/chunk_experiment.py，含大量换述题）；计划扩至 30+ 题 |
+| 英文嵌入模型对照 | bge-large-en-v1.5 在 SiliconFlow 不可用（400），待找到可用英文模型补测 |
 | 引用溯源 | 回答标注引用的来源文档（metadata 的 source 已就位） |
 | LangGraph 迁移 | RunnableWithMessageHistory 已被 LangChain 标记弃用，计划迁移至 LangGraph persistence |
 | 部署上线 | Docker 化 + 免费托管（HF Spaces / Render 等） |
