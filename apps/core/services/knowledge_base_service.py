@@ -11,8 +11,8 @@ import threading
 from datetime import datetime
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 import config_data as config
+from . import chunking
 
 logger = logging.getLogger(__name__)
 
@@ -73,20 +73,19 @@ class KnowledgeBaseService:
             persist_directory=config.persist_directory,
         )
 
-        self.spliter = RecursiveCharacterTextSplitter(
-            chunk_size=config.chunk_size,
-            chunk_overlap=config.chunk_overlap,
-            separators=config.separators,
-            length_function=len,
-        )
-
-    def upload_by_str(self, data: str, filename: str) -> dict:
+    def upload_by_str(self, data: str, filename: str,
+                      chunk_size: int | None = None,
+                      overlap: int | None = None,
+                      mode: str | None = None,
+                      clean: bool | None = None) -> dict:
         """
         将传入字符串进行向量化并存入向量数据库。
 
         Args:
             data: 文本内容
             filename: 来源文件名
+            chunk_size / overlap / mode / clean: 分段参数（Dify 式向导传入）；
+                None 落回 config_data 默认值
 
         Returns:
             结构化结果：
@@ -103,11 +102,8 @@ class KnowledgeBaseService:
                 "message": f"内容已存在于知识库中，跳过入库 (MD5: {md5_hex[:8]}...)",
             }
 
-        # 文本分块
-        if len(data) > config.max_split_char_number:
-            knowledge_chunks: list[str] = self.spliter.split_text(data)
-        else:
-            knowledge_chunks = [data]
+        # 文本分块（切块统一走 chunking 模块，支持上传时自定义参数）
+        knowledge_chunks = chunking.split_text(data, chunk_size, overlap, mode, clean)
 
         metadata = {
             "source": filename,
@@ -130,11 +126,15 @@ class KnowledgeBaseService:
             "message": f"内容已载入向量库，共 {chunk_count} 个分块",
         }
 
-    def upload_by_file_content(self, content: bytes, filename: str) -> dict:
+    def upload_by_file_content(self, content: bytes, filename: str,
+                               chunk_size: int | None = None,
+                               overlap: int | None = None,
+                               mode: str | None = None,
+                               clean: bool | None = None) -> dict:
         """
         直接从文件字节内容上传（FastAPI 文件上传接口调用）。
 
-        utf-8 优先，失败回退 gbk。
+        utf-8 优先，失败回退 gbk。分段参数透传给 upload_by_str。
         """
         try:
             text = content.decode('utf-8')
@@ -147,7 +147,7 @@ class KnowledgeBaseService:
                     "chunks": 0,
                     "message": "文件编码不支持，请使用 UTF-8 编码的文本文件",
                 }
-        return self.upload_by_str(text, filename)
+        return self.upload_by_str(text, filename, chunk_size, overlap, mode, clean)
 
     def stats(self) -> dict:
         """

@@ -71,3 +71,29 @@ class KnowledgeStats(BaseModel):
     chunks: int = Field(..., description="向量块总数")
     documents: Optional[int] = Field(default=None, description="文档记录数（Django）")
     last_updated: Optional[str] = Field(default=None, description="最近入库时间")
+
+
+# ===================== 分段预览（Dify 式向导） =====================
+
+class PreviewRequest(BaseModel):
+    """分段预览请求：纯 CPU 切块，不调用任何外部 API"""
+    text: str = Field(..., min_length=1, max_length=200_000, description="待分段文本")
+    chunk_size: int = Field(default=300, ge=50, le=2000, description="分段最大长度（字符）")
+    chunk_overlap: int = Field(default=50, ge=0, le=500, description="分段重叠（字符）")
+    mode: str = Field(default="paragraph", description="分段标识符模式：paragraph / line / sentence")
+    clean: bool = Field(default=True, description="是否清洗（合并连续空行与空白）")
+
+
+class PreviewChunk(BaseModel):
+    """预览中的单个分段"""
+    idx: int = Field(..., description="分段编号（从 1 开始）")
+    length: int = Field(..., description="该段字符数")
+    text: str = Field(..., description="分段内容（截断展示）")
+
+
+class PreviewResponse(BaseModel):
+    """分段预览响应"""
+    total: int = Field(..., description="总分段数")
+    total_chars: int = Field(..., description="原文总字符数")
+    preview: list[PreviewChunk] = Field(default_factory=list, description="前若干段预览")
+    truncated: bool = Field(..., description="是否只展示了部分分段")
