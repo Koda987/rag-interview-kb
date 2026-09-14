@@ -184,6 +184,16 @@
             opacity: 1; transform: translateX(3px);
         }
 
+        /* 图标（Lucide 线条图标） */
+        .ic {
+            width: 1em; height: 1em;
+            fill: none; stroke: currentColor; stroke-width: 2;
+            stroke-linecap: round; stroke-linejoin: round;
+            vertical-align: -0.125em;
+        }
+        .card-emoji .ic { width: 36px; height: 36px; color: var(--brand); }
+        .card-emoji { margin-bottom: 14px; }
+
         /* ============================================================
            FOOTER
            ============================================================ */
@@ -195,6 +205,17 @@
     </style>
 </head>
 <body>
+
+<!-- 图标精灵：Lucide v0.462.0（ISC License）https://lucide.dev -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-message-circle" viewBox="0 0 24 24">
+        <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+    </symbol>
+    <symbol id="i-book-open" viewBox="0 0 24 24">
+        <path d="M12 7v14" />
+        <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+    </symbol>
+</svg>
 
 <div class="hero">
     <div class="hero-logo">◈</div>
@@ -214,14 +235,14 @@
 
     <div class="cards">
         <a href="/api/chat" class="entry-card">
-            <span class="card-emoji">💬</span>
+            <span class="card-emoji"><svg class="ic"><use href="#i-message-circle"/></svg></span>
             <h2>智能对话</h2>
             <p>与知识库进行自然语言问答，AI 基于文档内容给出有据可查的回答</p>
             <span class="card-arrow">进入对话 →</span>
         </a>
 
         <a href="/api/upload" class="entry-card">
-            <span class="card-emoji">📚</span>
+            <span class="card-emoji"><svg class="ic"><use href="#i-book-open"/></svg></span>
             <h2>知识库管理</h2>
             <p>上传文档、添加知识条目，构建专属知识库，让 AI 更懂你的业务</p>
             <span class="card-arrow">管理知识库 →</span>

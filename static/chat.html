@@ -445,6 +445,17 @@
         }
 
         /* ============================================================
+           图标（Lucide 线条图标：继承文字颜色）
+           ============================================================ */
+        .ic {
+            width: 1em; height: 1em; flex-shrink: 0;
+            fill: none; stroke: currentColor; stroke-width: 2;
+            stroke-linecap: round; stroke-linejoin: round;
+            vertical-align: -0.125em;
+        }
+        .dh-title .ic { width: 15px; height: 15px; color: var(--brand); }
+
+        /* ============================================================
            RESPONSIVE
            ============================================================ */
         @media (max-width: 640px) {
@@ -458,6 +469,26 @@
     </style>
 </head>
 <body>
+
+<!-- 图标精灵：Lucide v0.462.0（ISC License）https://lucide.dev -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-history" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+        <path d="M3 3v5h5" />
+        <path d="M12 7v5l4 2" />
+    </symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+    </symbol>
+    <symbol id="i-trash-2" viewBox="0 0 24 24">
+        <path d="M3 6h18" />
+        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        <line x1="10" x2="10" y1="11" y2="17" />
+        <line x1="14" x2="14" y1="11" y2="17" />
+    </symbol>
+</svg>
 
 <!-- ============================================================
      NAVIGATION
@@ -473,9 +504,9 @@
             <a href="/api/upload" class="nav-link">知识库</a>
         </div>
         <div class="nav-actions">
-            <button class="btn-sm" title="查看、切换、删除历史会话" onclick="openDrawer()">📋 历史会话</button>
-            <button class="btn-sm" title="开启一个空白对话" onclick="newSession()">✚ 新会话</button>
-            <button class="btn-danger" title="删除当前会话的全部对话记录" onclick="clearChat()">清空对话</button>
+            <button class="btn-sm" title="查看、切换、删除历史会话" onclick="openDrawer()"><svg class="ic"><use href="#i-history"/></svg> 历史会话</button>
+            <button class="btn-sm" title="开启一个空白对话" onclick="newSession()"><svg class="ic"><use href="#i-plus"/></svg> 新会话</button>
+            <button class="btn-danger" title="删除当前会话的全部对话记录" onclick="clearChat()"><svg class="ic"><use href="#i-trash-2"/></svg> 清空对话</button>
         </div>
     </div>
 </nav>
@@ -516,7 +547,7 @@
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 <aside class="drawer" id="sessionDrawer" aria-label="会话列表">
     <div class="drawer-header">
-        <span class="dh-title">📋 会话列表</span>
+        <span class="dh-title"><svg class="ic"><use href="#i-history"/></svg> 会话列表</span>
         <button class="dh-close" onclick="closeDrawer()" title="关闭（Esc）">✕</button>
     </div>
     <div class="drawer-current">当前会话：<code id="currentSessionLabel">—</code></div>
