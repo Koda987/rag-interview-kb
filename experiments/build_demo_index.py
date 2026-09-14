@@ -77,6 +77,8 @@ def main():
     print("\n=== 2. 调用 bge-m3 生成向量 ===")
     vectors = embed_all(chunks)
     assert len(vectors) == len(chunks)
+    # 保留 5 位小数：对余弦相似度的影响可忽略，文件体积小约三成
+    vectors = [[round(x, 5) for x in v] for v in vectors]
 
     print("\n=== 3. 写出索引 ===")
     index = {
