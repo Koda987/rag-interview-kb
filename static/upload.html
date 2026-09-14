@@ -153,6 +153,7 @@
         }
         @media (max-width: 700px) {
             .grid { grid-template-columns: 1fr; }
+            .chunk-grid { grid-template-columns: 1fr; }
         }
 
         /* ============================================================
@@ -176,6 +177,93 @@
         }
         .card-icon.purple { background: var(--brand-ghost); }
         .card-icon.green { background: var(--success-bg); }
+        .card-icon.amber { background: var(--warning-bg); }
+
+        /* ============================================================
+           知识库内容浏览器（文档列表 | 知识块预览）
+           ============================================================ */
+        .stats-card { margin-bottom: var(--space-lg); }
+        .kb-browser-body {
+            display: grid; grid-template-columns: 300px 1fr; gap: var(--space-lg);
+            align-items: start;
+        }
+        @media (max-width: 900px) {
+            .kb-browser-body { grid-template-columns: 1fr; }
+        }
+        .kb-side { display: flex; flex-direction: column; gap: var(--space-sm); min-width: 0; }
+        .kb-side-head {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: var(--space-xs);
+        }
+        .kb-side-title { font-size: var(--text-sm); font-weight: 700; color: var(--ink); }
+        .doc-count-badge {
+            font-family: var(--font-mono); font-size: var(--text-xs);
+            background: var(--brand-ghost); color: var(--brand-dark);
+            padding: 2px 10px; border-radius: var(--radius-full); font-weight: 700;
+        }
+        .doc-list { max-height: 460px; flex: 1; }
+        .doc-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 12px;
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            background: var(--surface);
+            cursor: pointer; transition: var(--ease-out);
+        }
+        .doc-item:hover { border-color: var(--brand-light); background: var(--brand-surface); }
+        .doc-item.active { border-color: var(--brand); background: var(--brand-ghost); }
+        .doc-item .doc-name {
+            flex: 1; min-width: 0;
+            font-weight: 600; font-size: var(--text-sm); color: var(--ink);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .doc-item .doc-meta { color: var(--ink-subtle); font-size: var(--text-xs); white-space: nowrap; }
+        .doc-item .doc-del {
+            width: 26px; height: 26px; flex-shrink: 0;
+            border: none; background: transparent; color: var(--ink-subtle);
+            border-radius: 50%; cursor: pointer; font-size: 13px;
+            display: flex; align-items: center; justify-content: center;
+            transition: var(--ease-out);
+        }
+        .doc-item .doc-del:hover { background: var(--error-bg); color: var(--error); }
+        .chunk-panel { min-width: 0; display: flex; flex-direction: column; gap: var(--space-md); }
+        .chunk-panel-head { display: flex; align-items: center; gap: 10px; }
+        .chunk-panel-head .card-icon {
+            width: 32px; height: 32px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .chunk-panel-head h3 {
+            font-family: var(--font-display); font-size: var(--text-base); font-weight: 700;
+        }
+        .chunk-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);
+            max-height: 480px; overflow-y: auto; flex: 1;
+            padding-right: 4px;
+        }
+        .chunk-grid::-webkit-scrollbar { width: 3px; }
+        .chunk-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        @media (max-width: 1100px) { .chunk-grid { grid-template-columns: 1fr; } }
+        .chunk-item {
+            border: 1px solid var(--border); border-radius: var(--radius-sm);
+            background: var(--surface);
+            padding: 10px 12px; cursor: pointer;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .chunk-item:hover { border-color: var(--brand-light); }
+        .chunk-item.expanded { border-color: var(--brand-light); background: var(--brand-surface); }
+        .chunk-head {
+            display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm);
+            margin-bottom: 6px;
+        }
+        .chunk-src {
+            font-weight: 600; font-size: var(--text-xs); color: var(--brand-dark);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .chunk-time { color: var(--ink-subtle); font-size: var(--text-xs); white-space: nowrap; }
+        .chunk-text {
+            font-size: var(--text-sm); line-height: 1.7; color: var(--ink-muted);
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .chunk-item.expanded .chunk-text { display: block; -webkit-line-clamp: unset; }
         .card-header h3 {
             font-family: var(--font-display);
             font-size: var(--text-base); font-weight: 700;
@@ -492,10 +580,8 @@
             </button>
         </div>
 
-        <!-- RIGHT: Text Input + Stats -->
-        <div style="display:flex;flex-direction:column;gap:var(--space-lg);">
-            <!-- Text Input Card -->
-            <div class="card">
+        <!-- Text Input Card -->
+        <div class="card">
                 <div class="card-header">
                     <div class="card-icon purple">✏️</div>
                     <h3>快速添加知识</h3>
@@ -514,7 +600,7 @@
             </div>
 
             <!-- Stats Card -->
-            <div class="card">
+            <div class="card stats-card">
                 <div class="card-header">
                     <div class="card-icon green">📊</div>
                     <h3>知识库概览</h3>
@@ -540,7 +626,33 @@
                     <button class="btn-ghost" onclick="refreshStats()">🔄 刷新统计</button>
                 </div>
             </div>
-        </div>
+    </div>
+
+    <!-- 知识库内容浏览器：文档列表 | 知识块预览 -->
+    <div class="card kb-browser">
+      <div class="kb-browser-body">
+        <aside class="kb-side">
+            <div class="kb-side-head">
+                <span class="kb-side-title">已录入文档</span>
+                <span class="doc-count-badge" id="docCount">0</span>
+            </div>
+            <div class="doc-list" id="docList">
+                <div class="log-empty">加载中…</div>
+            </div>
+            <div class="stats-actions">
+                <button class="btn-ghost" onclick="loadKB()">🔄 刷新列表</button>
+            </div>
+        </aside>
+        <section class="chunk-panel">
+            <div class="chunk-panel-head">
+                <div class="card-icon amber">🧩</div>
+                <h3 id="chunkPanelTitle">选择左侧文档，预览它的知识块</h3>
+            </div>
+            <div class="chunk-grid" id="chunkList">
+                <div class="log-empty">← 在左侧选择文档，预览它的知识块</div>
+            </div>
+        </section>
+      </div>
     </div>
 
     <!-- Upload Log -->
@@ -703,6 +815,7 @@
         fileQueue = [];
         renderQueue();
         refreshStats();
+        loadKB();
     }
 
     // ==================== Text Upload ====================
@@ -727,6 +840,7 @@
                 showToast('知识已添加成功', 'success');
                 document.getElementById('kbText').value = '';
                 refreshStats();
+                loadKB();
             } else if (res.ok && data.status === 'skipped') {
                 addLogEntry('info', source, data.message);
                 showToast(data.message, '');
@@ -803,8 +917,119 @@
         return div.innerHTML;
     }
 
+    // ==================== 知识库内容浏览器（选中文档 → 预览知识块） ====================
+    var selectedDoc = null;
+    var docsCache = [];
+
+    // 加载文档列表；若之前选中的文档仍存在，则继续展示它的知识块
+    function loadKB() {
+        fetch(`${API_BASE}/knowledge/contents`)
+            .then(r => r.json())
+            .then(data => {
+                docsCache = data.documents || [];
+                renderDocs();
+                if (selectedDoc && docsCache.some(d => d.filename === selectedDoc)) {
+                    showChunks(selectedDoc);
+                } else {
+                    selectedDoc = null;
+                    renderDocs();
+                    clearChunkPanel();
+                }
+            })
+            .catch(() => {
+                document.getElementById('docList').innerHTML = '<div class="log-empty">加载失败</div>';
+            });
+    }
+
+    function selectDoc(filename) {
+        selectedDoc = filename;
+        renderDocs();
+        showChunks(filename);
+    }
+
+    function showChunks(source) {
+        fetch(`${API_BASE}/knowledge/contents?source=${encodeURIComponent(source)}`)
+            .then(r => r.json())
+            .then(data => renderChunks(data.chunks || [], source))
+            .catch(() => {
+                document.getElementById('chunkList').innerHTML = '<div class="log-empty">加载失败</div>';
+            });
+    }
+
+    function renderDocs() {
+        const list = document.getElementById('docList');
+        document.getElementById('docCount').textContent = docsCache.length;
+        if (!docsCache.length) {
+            list.innerHTML = '<div class="log-empty">知识库还是空的，先上传或添加知识吧</div>';
+            return;
+        }
+        list.innerHTML = docsCache.map((d, i) => `
+            <div class="doc-item ${selectedDoc === d.filename ? 'active' : ''}" data-idx="${i}" title="点击查看知识块">
+                <span class="doc-name">${escapeHtml(d.filename)}</span>
+                <span class="doc-meta">${d.chunk_count} 块</span>
+                <button class="doc-del" data-del="${i}" title="删除该文档">🗑</button>
+            </div>`).join('');
+        list.querySelectorAll('.doc-item').forEach(el => {
+            el.addEventListener('click', () => selectDoc(docsCache[Number(el.dataset.idx)].filename));
+        });
+        list.querySelectorAll('.doc-del').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteDocument(Number(el.dataset.del));
+            });
+        });
+    }
+
+    function renderChunks(chunks, source) {
+        document.getElementById('chunkPanelTitle').textContent =
+            `${source} · ${chunks.length} 个知识块`;
+        const list = document.getElementById('chunkList');
+        if (!chunks.length) { list.innerHTML = '<div class="log-empty">该文档暂无知识块</div>'; return; }
+        list.innerHTML = chunks.map(c => `
+            <div class="chunk-item" title="点击展开/收起全文">
+                <div class="chunk-head">
+                    <span class="chunk-src">${escapeHtml(c.source)}</span>
+                    <span class="chunk-time">${escapeHtml(c.create_time)}</span>
+                </div>
+                <div class="chunk-text">${escapeHtml(c.text)}</div>
+            </div>`).join('');
+        list.querySelectorAll('.chunk-item').forEach(el => {
+            el.addEventListener('click', () => el.classList.toggle('expanded'));
+        });
+    }
+
+    function clearChunkPanel() {
+        document.getElementById('chunkPanelTitle').textContent = '选择左侧文档，预览它的知识块';
+        document.getElementById('chunkList').innerHTML =
+            '<div class="log-empty">← 在左侧选择文档，预览它的知识块</div>';
+    }
+
+    async function deleteDocument(idx) {
+        const doc = docsCache[idx];
+        if (!doc) return;
+        if (!confirm(`确定删除「${doc.filename}」？\n将同时删除它的 ${doc.chunk_count} 个知识块，此操作不可恢复。`)) return;
+        try {
+            const res = await fetch(
+                `${API_BASE}/knowledge/document?filename=${encodeURIComponent(doc.filename)}`,
+                { method: 'DELETE' }
+            );
+            const data = await res.json();
+            if (res.ok && data.success) {
+                showToast(`已删除「${doc.filename}」（${data.deleted_chunks} 个知识块）`, 'success');
+                if (selectedDoc === doc.filename) selectedDoc = null;
+                loadKB();
+                refreshStats();
+            } else {
+                showToast((data && (data.detail || data.message)) || '删除失败', 'error');
+            }
+        } catch (err) {
+            showToast('网络错误', 'error');
+        }
+    }
+
     // ==================== Init ====================
     refreshStats();
+    loadKB();
 </script>
 
 </body>

@@ -100,3 +100,29 @@ def get_stats():
         chunks=s["chunks"],
         last_updated=s["last_updated"],
     )
+
+
+@router.get("/contents", summary="知识库内容：已录入文档 + 知识块预览")
+def get_contents(limit: int = 12, source: str | None = None):
+    """已录入文档列表 + 知识块内容预览。
+
+    注意保持同步 def：内部读取 Django ORM 与 Chroma，
+    FastAPI 会放入线程池执行。
+    source 传入来源文件名时，只返回该文件的知识块。
+    """
+    return {
+        "documents": knowledge_base_service.documents(),
+        "chunks": knowledge_base_service.preview_chunks(limit=limit, source=source),
+    }
+
+
+@router.delete("/document", summary="删除已录入文档")
+def remove_document(filename: str):
+    """删除指定文档：同时清除其全部知识块（Chroma）、上传记录（Django）与 MD5 去重记录。
+
+    注意保持同步 def：内部读取 Django ORM 与 Chroma，FastAPI 会放入线程池执行。
+    """
+    if not filename.strip():
+        raise HTTPException(status_code=400, detail="filename 不能为空")
+    result = knowledge_base_service.delete_document(filename.strip())
+    return result

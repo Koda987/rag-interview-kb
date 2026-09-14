@@ -173,6 +173,122 @@ class KnowledgeBaseService:
             logger.warning("读取 Django 上传记录失败: %s", e)
         return {"chunks": chunks, "documents": documents, "last_updated": last_updated}
 
+    def documents(self) -> list[dict]:
+        """
+        已录入文档列表（来自 Django 上传记录，按入库时间倒序）。
+
+        chunk_count 以 Chroma 实际分块数为准（去重跳过的重复上传
+        会在 DB 里记 0 块，直接展示会误导）。
+
+        Returns:
+            [{filename, chunk_count, content_length, created_at}, ...]
+        """
+        try:
+            from apps.core.models import KnowledgeDocument
+            from django.utils import timezone
+            # 统计每个来源文件在 Chroma 里的真实块数
+            counts = {}
+            try:
+                got = self.chroma._collection.get(include=["metadatas"])
+                for meta in got.get("metadatas") or []:
+                    src = (meta or {}).get("source", "未知来源")
+                    counts[src] = counts.get(src, 0) + 1
+            except Exception as e:
+                logger.warning("统计 Chroma 分块数失败: %s", e)
+            qs = KnowledgeDocument.objects.all().order_by('-created_at')
+            return [{
+                "filename": d.filename,
+                "chunk_count": counts.get(d.filename, d.chunk_count),
+                "content_length": d.content_length,
+                "created_at": timezone.localtime(d.created_at).strftime('%Y-%m-%d %H:%M'),
+            } for d in qs]
+        except Exception as e:
+            logger.warning("读取文档列表失败: %s", e)
+            return []
+
+    def preview_chunks(self, limit: int = 12, source: str | None = None) -> list[dict]:
+        """
+        知识块内容预览：取最近入库的 limit 块（可按来源文件过滤）。
+
+        Args:
+            limit: 最多返回的块数
+            source: 来源文件名（传入则只返回该文件的知识块）
+
+        Returns:
+            [{id, source, create_time, text}, ...]（text 为完整原文，前端负责截断/展开）
+        """
+        got = self.chroma._collection.get(include=["documents", "metadatas"])
+        items = []
+        for cid, text, meta in zip(
+            got.get("ids") or [],
+            got.get("documents") or [],
+            got.get("metadatas") or [],
+        ):
+            meta = meta or {}
+            if source and meta.get("source") != source:
+                continue
+            items.append({
+                "id": cid,
+                "source": meta.get("source", "未知来源"),
+                "create_time": meta.get("create_time", ""),
+                "text": text or "",
+            })
+        # Chroma 的 get 无排序保证；create_time 为 %Y-%m-%d %H:%M:%S 格式，字典序即时间序
+        items.sort(key=lambda x: x["create_time"], reverse=True)
+        return items[:max(1, limit)]
+
+    def delete_document(self, filename: str) -> dict:
+        """
+        删除指定来源文档：Chroma 知识块 + Django 上传记录 + MD5 去重记录一并清除。
+
+        Args:
+            filename: 来源文件名
+
+        Returns:
+            {"success": True/False, "deleted_chunks": 删除的知识块数,
+             "deleted_records": 删除的上传记录数, "message": 描述}
+        """
+        deleted_chunks = 0
+        try:
+            # Chroma 按 metadata.source 删除对应知识块
+            result = self.chroma._collection.delete(where={"source": filename})
+            # delete 的返回值在不同版本里可能是 ID 列表或 None
+            if isinstance(result, list):
+                deleted_chunks = len(result)
+        except Exception as e:
+            logger.warning("删除 Chroma 知识块失败（%s）: %s", filename, e)
+
+        deleted_records = 0
+        md5_hashes = []
+        try:
+            from apps.core.models import KnowledgeDocument
+            qs = KnowledgeDocument.objects.filter(filename=filename)
+            md5_hashes = list(qs.values_list('md5_hash', flat=True))
+            if md5_hashes:
+                deleted_records = qs.count()
+                qs.delete()
+        except Exception as e:
+            logger.warning("删除 Django 上传记录失败（%s）: %s", filename, e)
+
+        # 同步清理 MD5 去重记录，使同名内容之后可以重新入库
+        if md5_hashes:
+            try:
+                if os.path.exists(config.md5_path):
+                    with open(config.md5_path, encoding='utf-8') as f:
+                        lines = [ln.strip() for ln in f if ln.strip()]
+                    kept = [ln for ln in lines if ln not in md5_hashes]
+                    with open(config.md5_path, 'w', encoding='utf-8') as f:
+                        f.write('\n'.join(kept) + ('\n' if kept else ''))
+            except Exception as e:
+                logger.warning("清理 MD5 记录失败: %s", e)
+
+        return {
+            "success": True,
+            "deleted_chunks": deleted_chunks,
+            "deleted_records": deleted_records,
+            "message": f"已删除「{filename}」",
+        }
+
     def _save_to_db(self, filename: str, md5_hash: str, content_length: int, chunk_count: int):
         """将上传记录同步到 Django 数据库（可选，失败不影响入库）"""
         try:
