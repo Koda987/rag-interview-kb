@@ -1,6 +1,8 @@
 # 智能知识库问答系统（RAG）
 
-基于 LangChain + ChromaDB 的知识库问答应用：上传文档自动入库，多轮对话问答，SSE 流式输出。以服装售前客服为示例场景（尺码推荐 / 洗涤养护 / 颜色选择），知识库内容可替换为任意领域。
+基于 LangChain + ChromaDB 的知识库问答应用：上传文档自动入库，多轮对话问答，SSE 流式输出。以 **AI 面试八股库**为场景（Transformer 注意力 / 大模型基础 / RAG 检索 / Prompt 与 Agent / 工程实践，共 5 篇语料）。
+
+本项目由服装客服场景的 [rag-knowledge](https://github.com/Koda987/rag-knowledge) **整体换域**而来：架构与代码零改动，仅替换 `data/` 语料与 UI 文案——用实践验证知识库与业务领域解耦。
 
 ## ✨ 功能特性
 
@@ -18,7 +20,8 @@
 |---|---|---|
 | v0.1 | Streamlit 单文件原型 | 快速验证 RAG 链路可行性 |
 | v0.2 | Django + FastAPI 工程化 | 服务层单例、Swagger 文档、Django Admin、静态前端 |
-| v0.3（当前） | 原型退役，结构收敛 | 移除双实现分叉、修复 bug、前端补齐流式与历史恢复（见下方优化记录） |
+| v0.3 | 原型退役，结构收敛 | 移除双实现分叉、修复 bug、前端补齐流式与历史恢复（见下方优化记录） |
+| v0.4（当前） | 知识库换域 | 语料从服装客服换为 AI 面试八股库，架构零改动，验证域无关复用 |
 
 保留"先原型、后工程化、再收敛"的演进路径，而不是一开始就上重架构。
 
@@ -84,7 +87,7 @@ python run.py --port 8000
 │       ├── models.py            #   KnowledgeDocument 上传记录
 │       └── services/            #   服务层（RAG / 知识库 / 向量库，线程安全单例）
 ├── static/                      # 前端三页（落地 / 对话 / 知识库管理）
-├── data/                        # 示例知识库文档
+├── data/                        # 知识库语料（5 篇 LLM 面试八股，Q&A 体）
 ├── rag_project/                 # Django + FastAPI 组合 ASGI 配置
 └── run.py                       # 启动脚本
 ```
@@ -110,15 +113,16 @@ python run.py --port 8000
 | fix | SSE 流式帧 JSON 包装 | 文本内含换行符会破坏 `data:` 帧分隔，导致前端解析错乱 |
 | 安全 | session_id 正则白名单校验（存储层 + 路由层双重） | session_id 直接拼进文件路径，`../xx` 可路径穿越写到目录外 |
 | style | 字体本地化、按钮文字化、统计卡三列化、favicon | Google Fonts 国内加载失败回退宋体；裸图标按钮语义不明 |
-| 实验 | chunk 参数扫描（6 组 × 16 题）：**300/50 实测最优**（hit@1 69%），overlap 贡献 +7pp，小块跌破随机基线 | 用数据替代默认参数；完整报告见 experiments/results.md |
+| 实验 | chunk 参数扫描两轮：服装域首轮 hit@1 69%（后证实测于损坏的向量空间）；换域八股库、嵌入修复后重跑：**300/50 hit@1 94% / MRR 0.969**，100 与 800 两端退化至 88%，区间内高度稳健 | 用数据替代默认参数；完整报告见 experiments/results.md |
+| fix | 嵌入修复：langchain_openai 默认把文本转成 tiktoken token id 再发给第三方接口，bge-m3 词表不同导致向量语义损坏（同文本与直连 API 余弦仅 0.29）——三处嵌入器统一关闭 check_embedding_ctx_length，上传端改为复用检索端嵌入器 | 检索从"时好时坏"（正确块被同格式块挤出 Top-5，模型只能答"无资料"）到诊断题全部 #1 命中；三角验证定位（embed_query / embed_documents / 直连 API 互证） |
 
 ## 🔬 后续计划
 
 | 事项 | 说明 |
 |---|---|
-| chunk 实验扩充 | ✅ 已完成 6 组 × 16 题扫描（experiments/results.md）；知识库换域/扩充语料后重跑 |
+| chunk 实验扩充 | ✅ 两轮完成：服装域首轮 + 八股库换域后真向量空间重跑（300/50 → hit@1 94% / MRR 0.969） |
 | 评估集扩充 | 已建 16 题评估集（experiments/chunk_experiment.py，含大量换述题）；计划扩至 30+ 题 |
-| 英文嵌入模型对照 | bge-large-en-v1.5 在 SiliconFlow 不可用（400），待找到可用英文模型补测 |
+| 英文嵌入模型对照 | ✅ 已补测：bge-large-en-v1.5 hit@1 81% vs bge-m3 94%（同参数），印证中文语料应选中文嵌入模型 |
 | 引用溯源 | 回答标注引用的来源文档（metadata 的 source 已就位） |
 | LangGraph 迁移 | RunnableWithMessageHistory 已被 LangChain 标记弃用，计划迁移至 LangGraph persistence |
 | 部署上线 | Docker 化 + 免费托管（HF Spaces / Render 等） |

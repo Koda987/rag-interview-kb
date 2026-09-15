@@ -19,9 +19,9 @@ import argparse
 
 
 def main():
-    parser = argparse.ArgumentParser(description="启动 RAG 智能客服服务（Django + FastAPI）")
+    parser = argparse.ArgumentParser(description="启动 AI 面试八股知识引擎（Django + FastAPI）")
     parser.add_argument("--host", default="127.0.0.1", help="监听地址 (默认: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8000, help="监听端口 (默认: 8000)")
+    parser.add_argument("--port", type=int, default=8001, help="监听端口 (默认: 8000)")
     parser.add_argument("--reload", action="store_true", help="开启热重载（开发模式）")
     args = parser.parse_args()
 
@@ -39,7 +39,7 @@ def main():
     import uvicorn
 
     print("=" * 60)
-    print("  RAG 智能客服服务 启动中...")
+    print("  AI 面试八股知识引擎 启动中...")
     print(f"  聊天界面:            http://{args.host}:{args.port}")
     print(f"  API 文档 (Swagger):  http://{args.host}:{args.port}/api/docs")
     print(f"  API 文档 (ReDoc):    http://{args.host}:{args.port}/api/redoc")

@@ -13,7 +13,7 @@ chunk 参数对比实验 —— 用数据回答"chunk_size / overlap 怎么定"
 指标说明：
     - hit@1：检索第一名就命中正确文档的比例（本实验的主指标）
     - MRR：第一名=1分、第二名=0.5分……的平均（衡量整体排序质量）
-    - 不统计 hit@5：语料只有 3 篇文档，Top-5 几乎必然全覆盖，没有区分度
+    - 不统计 hit@5：语料只有 5 篇文档，Top-5 几乎必然全覆盖，没有区分度
 """
 import os
 import shutil
@@ -42,25 +42,27 @@ except Exception:
 #    （含大量"换述题"——问题和原文用词不同，考语义检索而非关键词匹配）
 # ============================================================
 EVAL = [
-    # —— 尺码推荐 ——
-    ("我身高178cm、体重140斤，应该穿什么尺码？", "尺码推荐.txt"),
-    ("体重200斤的人选多大码？", "尺码推荐.txt"),
-    ("最大的尺码是多少，适合什么身高体重？", "尺码推荐.txt"),
-    ("160cm、95斤穿S还是M？", "尺码推荐.txt"),
-    # —— 洗涤养护 ——
-    ("真丝连衣裙可以机洗吗？", "洗涤养护.txt"),
-    ("羊毛衫能用洗衣机洗吗？", "洗涤养护.txt"),
-    ("羽绒服洗完怎么恢复蓬松？", "洗涤养护.txt"),
-    ("厚羊毛大衣为什么不能水洗？", "洗涤养护.txt"),
-    ("牛仔裤第一次下水要注意什么？", "洗涤养护.txt"),
-    ("什么材质的衣服收纳时要放樟脑丸？", "洗涤养护.txt"),
-    ("冰丝T恤能用热水洗吗？", "洗涤养护.txt"),
-    ("衣服上沾了血渍怎么处理？", "洗涤养护.txt"),
-    # —— 颜色选择 ——
-    ("黄皮肤的人适合穿什么颜色？", "颜色选择.txt"),
-    ("参加面试应该穿什么颜色？", "颜色选择.txt"),
-    ("怎么搭配颜色显得高？", "颜色选择.txt"),
-    ("红色和绿色能搭配在一起吗？", "颜色选择.txt"),
+    # —— Transformer 与注意力机制 ——
+    ("注意力公式里那个根号 dk 的缩放因子是干什么用的？", "Transformer与注意力机制.txt"),
+    ("KV Cache 到底缓存了什么东西，为什么能省算力？", "Transformer与注意力机制.txt"),
+    ("为什么 GPT 这类大模型都用 Decoder-only，不用 Encoder-Decoder？", "Transformer与注意力机制.txt"),
+    # —— 大模型基础与幻觉 ——
+    ("temperature 调高和调低分别适合什么场景？", "大模型基础与幻觉.txt"),
+    ("模型一本正经地胡说八道，有什么办法治？", "大模型基础与幻觉.txt"),
+    ("预训练、SFT、RLHF 这三个阶段分别在干什么？", "大模型基础与幻觉.txt"),
+    # —— RAG 与向量检索 ——
+    ("RAG 的完整链路是什么样的？", "RAG与向量检索.txt"),
+    ("切块的时候块设得太大或太小各有什么毛病？", "RAG与向量检索.txt"),
+    ("想让模型学会公司内部知识，微调和检索增强选哪个？", "RAG与向量检索.txt"),
+    ("检索先召回 50 条再精排 5 条，后面这步叫什么、图什么？", "RAG与向量检索.txt"),
+    # —— Prompt 工程与 Agent ——
+    ("写 prompt 的时候一般要交代清楚哪几样东西？", "Prompt工程与Agent.txt"),
+    ("大模型调用外部函数的机制是怎么回事？", "Prompt工程与Agent.txt"),
+    ("Agent 的 Thought-Action-Observation 循环是怎么转起来的？", "Prompt工程与Agent.txt"),
+    # —— 工程实践与部署 ——
+    ("服务器往前端一个字一个字推文本，用 SSE 还是 WebSocket？", "工程实践与部署.txt"),
+    ("为什么 async 的 Django 视图里直接查 ORM 会报错？", "工程实践与部署.txt"),
+    ("API key 为什么不能写死在代码里提交到 git？", "工程实践与部署.txt"),
 ]
 
 # ============================================================
@@ -115,7 +117,13 @@ def run_config(chunk_size, overlap, model_name, note="", slug=None):
         separators=config.separators,
         length_function=len,
     )
-    embeddings = OpenAIEmbeddings(openai_api_base=config.address, model=model_name)
+    embeddings = OpenAIEmbeddings(
+        openai_api_base=config.address,
+        model=model_name,
+        # 发送原文而非 token id：第三方接口词表不同，token id 会产生
+        # 语义错乱的向量（详见 vector_store_service.py 的注释）
+        check_embedding_ctx_length=False,
+    )
 
     try:
         if db_dir.exists():
@@ -152,8 +160,10 @@ def run_config(chunk_size, overlap, model_name, note="", slug=None):
             rank = next((i + 1 for i, s in enumerate(sources) if s == expected), None)
             if rank:
                 mrr_sum += 1.0 / rank
+                if rank == 1:
+                    hit1 += 1
             if rank != 1:
-                # 记录"第一名未命中"的题（而非 Top-5 全脱靶——3 篇语料下后者几乎不发生）
+                # 记录"第一名未命中"的题（而非 Top-5 全脱靶——5 篇语料下后者仍少见）
                 fails.append(q + ("（Top-5 全脱靶）" if rank is None else f"（正确文档排第 {rank} 名）"))
             time.sleep(0.2)
 
@@ -178,11 +188,11 @@ def write_report(rows):
         "# chunk 参数对比实验报告",
         "",
         f"- 实验时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        f"- 语料：data/ 下 3 篇文档（尺码推荐 / 洗涤养护 / 颜色选择）",
+        f"- 语料：data/ 下 5 篇文档（Transformer 注意力 / 大模型基础 / RAG 检索 / Prompt 与 Agent / 工程实践）",
         f"- 评估集：{len(EVAL)} 道题（含大量换述题，考语义检索而非字面匹配）",
         f"- 嵌入模型：{EMBED_MODEL}（经 SiliconFlow API）",
         f"- 指标：hit@1 = 检索第一名命中正确文档的比例；MRR = 排序质量",
-        f"- 不统计 hit@5：语料仅 3 篇，Top-5 几乎必然全覆盖，无区分度",
+        f"- 不统计 hit@5：语料仅 5 篇，Top-5 几乎必然全覆盖，无区分度",
         "",
         "## 结果总表",
         "",
