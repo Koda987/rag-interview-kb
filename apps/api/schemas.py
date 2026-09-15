@@ -97,3 +97,73 @@ class PreviewResponse(BaseModel):
     total_chars: int = Field(..., description="原文总字符数")
     preview: list[PreviewChunk] = Field(default_factory=list, description="前若干段预览")
     truncated: bool = Field(..., description="是否只展示了部分分段")
+
+
+# ===================== 面试官模式 =====================
+
+class TopicItem(BaseModel):
+    """题库主题"""
+    name: str = Field(..., description="主题名（语料文件名去扩展名）")
+    question_count: int = Field(..., description="该主题题数")
+
+
+class TopicListResponse(BaseModel):
+    """主题列表响应"""
+    topics: list[TopicItem] = Field(default_factory=list)
+
+
+class QuizSentence(BaseModel):
+    """答案碎片（保持正确顺序）"""
+    idx: int = Field(..., description="句子在标准答案中的序号（0 开始）")
+    text: str = Field(..., description="碎片文本")
+
+
+class QuizQuestion(BaseModel):
+    """一道面试题"""
+    qid: str = Field(..., description="题目 ID，如 大模型基础与幻觉#3")
+    topic: str = Field(..., description="所属主题")
+    question: str = Field(..., description="题面")
+    answer: str = Field(..., description="标准答案")
+    sentences: list[QuizSentence] = Field(default_factory=list, description="切好的答案碎片")
+
+
+class QuizResponse(BaseModel):
+    """抽题响应"""
+    questions: list[QuizQuestion] = Field(default_factory=list)
+
+
+class OpeningRequest(BaseModel):
+    """开场白请求"""
+    topic: str = Field(..., min_length=1, max_length=200, description="面试主题")
+    count: int = Field(default=5, ge=1, le=50, description="本场题数")
+    mode: str = Field(default="practice", description="practice / quick")
+
+
+class PuzzleResult(BaseModel):
+    """拼图结果（只含数值，不含答案文本）"""
+    correct: int = Field(..., ge=0, description="位置正确的碎片数")
+    total: int = Field(..., ge=1, description="碎片总数")
+    gave_up: bool = Field(default=False, description="是否放弃并查看了答案")
+
+
+class ReviewRequest(BaseModel):
+    """逐题点评请求"""
+    qid: str = Field(..., min_length=1, max_length=300, description="题目 ID")
+    user_answer: Optional[str] = Field(
+        default=None, max_length=2000, description="练习模式下候选人的自由作答")
+    puzzle: PuzzleResult = Field(..., description="拼图结果")
+
+
+class ReportItem(BaseModel):
+    """场次报告的单题结果"""
+    qid: str = Field(..., min_length=1, max_length=300)
+    score: float = Field(..., ge=0.0, le=1.0, description="该题得分（0~1）")
+    gave_up: bool = Field(default=False, description="是否放弃")
+    skipped: bool = Field(default=False, description="是否跳过")
+
+
+class ReportRequest(BaseModel):
+    """场次报告请求"""
+    topic: str = Field(..., min_length=1, max_length=200)
+    mode: str = Field(default="practice")
+    results: list[ReportItem] = Field(default_factory=list)

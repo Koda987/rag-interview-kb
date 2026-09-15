@@ -8,11 +8,11 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
-from apps.api.routers import qa, knowledge
+from apps.api.routers import qa, knowledge, interview
 
 # ---------- FastAPI 应用实例 ----------
 app = FastAPI(
-    title="RAG 智能客服 API",
+    title="AI 面试八股知识库 API",
     description="基于 LangChain + Chroma 的 RAG 检索增强生成问答系统",
     version="1.0.0",
     docs_url="/docs",          # Swagger UI:  /api/docs
@@ -33,13 +33,14 @@ app.add_middleware(
 # ---------- 注册路由 ----------
 app.include_router(qa.router, prefix="/qa", tags=["🤖 智能问答"])
 app.include_router(knowledge.router, prefix="/knowledge", tags=["📚 知识库管理"])
+app.include_router(interview.router, prefix="/interview", tags=["🎤 面试官模式"])
 
 
 # ---------- 健康检查 ----------
 @app.get("/health", tags=["⚙️ 系统"])
 def health_check():
     """健康检查接口"""
-    return {"status": "ok", "service": "RAG 智能客服 API"}
+    return {"status": "ok", "service": "AI 面试八股知识库 API"}
 
 
 # ---------- 静态页面 ----------
@@ -64,15 +65,22 @@ def upload_page():
     return FileResponse(os.path.join(STATIC_DIR, 'upload.html'))
 
 
+@app.get("/interview", tags=["🖥️ 前端"], include_in_schema=False)
+def interview_page():
+    """模拟面试界面"""
+    return FileResponse(os.path.join(STATIC_DIR, 'interview.html'))
+
+
 @app.get("/info", tags=["⚙️ 系统"])
 def api_info():
     """API 信息"""
     return {
-        "service": "RAG 智能客服 API",
+        "service": "AI 面试八股知识库 API",
         "version": "1.0.0",
         "landing": "/api/",
         "chat_ui": "/api/chat",
         "upload_ui": "/api/upload",
+        "interview_ui": "/api/interview",
         "docs": "/api/docs",
         "redoc": "/api/redoc",
         "health": "/api/health",

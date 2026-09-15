@@ -6,9 +6,13 @@
 from .rag_service import rag_service
 from .knowledge_base_service import knowledge_base_service
 from .vector_store_service import vector_store_service
+from .question_bank import question_bank
+from .interviewer_service import interviewer_service
 
 __all__ = [
     "rag_service",
     "knowledge_base_service",
     "vector_store_service",
+    "question_bank",
+    "interviewer_service",
 ]

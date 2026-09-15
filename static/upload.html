@@ -201,7 +201,11 @@
             background: var(--brand-ghost); color: var(--brand-dark);
             padding: 2px 10px; border-radius: var(--radius-full); font-weight: 700;
         }
-        .doc-list { max-height: 460px; flex: 1; }
+        /* overflow 必须与 max-height 成对出现：只限高不滚动，超出的列表项会
+           直接画出容器外，撑破卡片并遮挡下方区域（12 篇文档时实测复现） */
+        .doc-list { max-height: 460px; overflow-y: auto; flex: 1; }
+        .doc-list::-webkit-scrollbar { width: 3px; }
+        .doc-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
         .doc-item {
             display: flex; align-items: center; gap: 10px;
             padding: 11px 12px;
@@ -790,6 +794,7 @@
         <div class="nav-links">
             <a href="/api/chat" class="nav-link">对话</a>
             <a href="/api/upload" class="nav-link active">知识库</a>
+            <a href="/api/interview" class="nav-link">面试</a>
         </div>
     </div>
 </nav>
@@ -859,7 +864,7 @@
                 <div class="source-config" id="cfgText">
                     <div class="text-input-group">
                         <label>知识内容</label>
-                        <textarea id="kbText" rows="5" placeholder="粘贴或输入知识点…&#10;例如：产品A的保修期为2年，支持全国联保。"></textarea>
+                        <textarea id="kbText" rows="5" placeholder="粘贴或输入知识点…&#10;例如：Q: 什么是幂等性？&#10;A: 同一请求重复执行，效果与执行一次相同。"></textarea>
                     </div>
                     <div class="text-input-group">
                         <label>来源名称（可选）</label>
