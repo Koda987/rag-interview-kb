@@ -100,6 +100,19 @@ def build_cloze(answer: str):
     return {"parts": parts, "terms": terms}
 
 
+def parse_qa_text(text: str) -> list[tuple[str, str]]:
+    """把 Q:/A: 格式文本解析成问答对列表；格式不符的段落跳过。
+
+    导入接口与题库装载共用，保证"能被解析"与"入库后长什么样"一致。
+    """
+    pairs = []
+    for block in (b.strip() for b in re.split(r'\n\s*\n', text) if b.strip()):
+        m = _QA_BLOCK.match(block)
+        if m:
+            pairs.append((m.group(1).strip(), m.group(2).strip()))
+    return pairs
+
+
 class QuestionBank:
     """题库（懒解析 + 进程内缓存；data/ 变更后重启服务生效）"""
 
@@ -127,19 +140,12 @@ class QuestionBank:
         for path in sorted(data_dir.glob("*.txt")):
             topic = path.stem
             items: list[dict] = []
-            text = path.read_text(encoding="utf-8")
-            blocks = [b.strip() for b in re.split(r'\n\s*\n', text) if b.strip()]
-            seq = 0
-            for block in blocks:
-                m = _QA_BLOCK.match(block)
-                if not m:
-                    continue  # 容错：不符合 Q:/A: 格式的段落直接跳过
-                seq += 1
-                answer = m.group(2).strip()
+            for seq, (question, answer) in enumerate(
+                    parse_qa_text(path.read_text(encoding="utf-8")), 1):
                 item = {
                     "qid": f"{topic}#{seq}",
                     "topic": topic,
-                    "question": m.group(1).strip(),
+                    "question": question,
                     "answer": answer,
                     "sentences": [
                         {"idx": i, "text": s}
@@ -151,6 +157,12 @@ class QuestionBank:
                 self._by_qid[item["qid"]] = item
             if items:
                 self._by_topic[topic] = items
+
+    def reload(self):
+        """重新扫描 data/（导入新题库文件后调用，无需重启服务）"""
+        self._by_topic = {}
+        self._by_qid = {}
+        self._load()
 
     def topics(self) -> list[dict]:
         """[{name, question_count}]，按文件名排序"""

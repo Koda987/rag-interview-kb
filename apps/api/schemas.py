@@ -175,3 +175,21 @@ class ReportRequest(BaseModel):
     topic: str = Field(..., min_length=1, max_length=200)
     mode: str = Field(default="practice")
     results: list[ReportItem] = Field(default_factory=list)
+
+
+class ImportRequest(BaseModel):
+    """导入题库请求：内容存为 data/<主题>.txt 并刷新题库"""
+    topic: str = Field(..., min_length=1, max_length=50, description="主题名（存为 data/<主题>.txt）")
+    content: str = Field(..., min_length=1, max_length=200_000, description="Q:/A: 格式文本")
+
+
+class ImportResponse(BaseModel):
+    """导入题库响应"""
+    topic: str
+    question_count: int
+
+
+class GenerateRequest(BaseModel):
+    """AI 出题请求：任意资料转 Q&A"""
+    source: str = Field(..., min_length=1, max_length=20_000, description="原始资料文本")
+    count: int = Field(default=8, ge=3, le=15, description="出题数量")

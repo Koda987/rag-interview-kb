@@ -14,15 +14,19 @@
 """
 import json
 import random
+import re
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+import config_data as config
 from apps.api.schemas import (
     TopicListResponse, TopicItem, QuizResponse, QuizQuestion,
     OpeningRequest, ReviewRequest, ReportRequest,
+    ImportRequest, ImportResponse, GenerateRequest,
 )
 from apps.core.services import interviewer_service, question_bank
+from apps.core.services.question_bank import parse_qa_text
 
 router = APIRouter()
 
@@ -31,6 +35,9 @@ _SSE_HEADERS = {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no",
 }
+
+# 主题名将拼进文件路径：白名单校验，防路径穿越/非法文件名
+_TOPIC_RE = re.compile(r'^[\w一-鿿][\w一-鿿\- ]{0,23}$')
 
 
 def _sse(generator):
@@ -151,4 +158,43 @@ def report(request: ReportRequest):
         "mode_desc": mode_desc,
         "score_desc": f"平均 {int(round(avg * 100))} 分（满分 100）",
         "items": "\n".join(lines),
+    }))
+
+
+@router.post("/import", response_model=ImportResponse, summary="导入题库（存为 data/ 下的新主题并刷新）")
+def import_bank(request: ImportRequest):
+    topic = request.topic.strip()
+    if not _TOPIC_RE.fullmatch(topic):
+        raise HTTPException(
+            status_code=400,
+            detail="主题名仅支持中英文/数字/空格/连字符，长度 1-24，不能以符号开头",
+        )
+    pairs = parse_qa_text(request.content)
+    if not pairs:
+        raise HTTPException(
+            status_code=400,
+            detail="没有解析出任何 Q:/A: 问答对——请检查格式（Q: 与 A: 各占一行，问答之间空行）",
+        )
+
+    path = config.BASE_DIR / "data" / f"{topic}.txt"
+    if path.exists():
+        raise HTTPException(
+            status_code=409,
+            detail=f"主题「{topic}」已存在，请换个名字，或删除 data/{topic}.txt 后重试",
+        )
+    path.write_text(request.content.strip() + "\n", encoding="utf-8")
+    question_bank.reload()
+    return ImportResponse(topic=topic, question_count=len(question_bank.questions(topic)))
+
+
+@router.post("/generate", summary="AI 出题：任意资料转 Q&A（SSE 流式）")
+def generate(request: GenerateRequest):
+    src = request.source.strip()
+    if len(src) < 50:
+        raise HTTPException(status_code=400, detail="资料太短（至少 50 字）")
+    if len(src) > 8000:
+        src = src[:8000] + "\n……（资料过长已截断）"
+    return _sse(interviewer_service.stream("generate", {
+        "source": src,
+        "count": request.count,
     }))

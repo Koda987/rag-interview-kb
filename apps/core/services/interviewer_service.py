@@ -50,6 +50,19 @@ _REPORT = ChatPromptTemplate.from_messages([
      "逐题结果：\n{items}\n请生成本场总结。"),
 ])
 
+_GENERATE = ChatPromptTemplate.from_messages([
+    ("system",
+     "你是八股题库编辑。把用户给的资料转成面试问答对，严格输出以下格式，"
+     "除此之外不输出任何文字（不要标题、序号、解释、markdown 代码块）：\n\n"
+     "Q: 问题\nA: 答案\n\nQ: 问题\nA: 答案\n\n"
+     "要求：\n"
+     "1. 问题像面试官口头提问，可对资料换述，不照抄小标题；\n"
+     "2. 答案 2-5 句、约 80-200 字，保留资料中的关键术语与数字；\n"
+     "3. 覆盖资料里不同的知识点，不出重复题；\n"
+     "4. 资料之外的内容不编造，资料支撑不了的知识点不出题。"),
+    ("user", "请根据以下资料出 {count} 道题：\n\n{source}"),
+])
+
 
 class InterviewerService:
     """面试官台词生成（单例）"""
@@ -77,6 +90,7 @@ class InterviewerService:
             "opening": _OPENING,
             "review": _REVIEW,
             "report": _REPORT,
+            "generate": _GENERATE,
         }
 
     def stream(self, kind: str, variables: dict):

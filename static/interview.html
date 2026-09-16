@@ -396,6 +396,43 @@
         }
         .report-actions { display: flex; gap: var(--space-md); justify-content: center; flex-wrap: wrap; margin-top: var(--space-lg); }
 
+        /* ================= 导入弹窗 ================= */
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 300;
+            background: rgba(28,27,31,0.4);
+            display: flex; align-items: center; justify-content: center;
+            padding: var(--space-md);
+            opacity: 0; visibility: hidden; transition: var(--ease-out);
+        }
+        body.modal-open .modal-overlay { opacity: 1; visibility: visible; }
+        .modal {
+            width: 660px; max-width: 100%; max-height: 88vh; overflow-y: auto;
+            background: var(--surface); border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg); padding: var(--space-lg);
+            transform: translateY(12px); transition: var(--ease-out);
+        }
+        body.modal-open .modal { transform: translateY(0); }
+        .modal h3 { font-size: var(--text-md); font-weight: 700; margin-bottom: var(--space-md); }
+        .imp-tabs { display: flex; gap: var(--space-sm); margin-bottom: var(--space-md); }
+        .imp-tab {
+            flex: 1; text-align: center; padding: 8px 0;
+            font-size: var(--text-sm); font-weight: 600;
+            border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+            cursor: pointer; color: var(--ink-muted); transition: var(--ease-out);
+        }
+        .imp-tab.active { border-color: var(--brand); color: var(--brand); background: var(--brand-ghost); }
+        .modal input[type=text], .modal textarea {
+            width: 100%; border: 1px solid var(--border); border-radius: var(--radius-sm);
+            padding: 10px 12px; font-size: var(--text-sm); font-family: var(--font-body);
+            line-height: 1.6; outline: none; background: var(--paper); transition: var(--ease-out);
+        }
+        .modal input[type=text]:focus, .modal textarea:focus {
+            border-color: var(--brand-light); box-shadow: var(--shadow-glow);
+        }
+        .modal textarea { min-height: 200px; resize: vertical; }
+        .gen-count-row { display: flex; gap: var(--space-sm); margin: var(--space-sm) 0 var(--space-md); }
+        .imp-actions { display: flex; gap: var(--space-sm); justify-content: flex-end; margin-top: var(--space-lg); }
+
         /* ================= 抽屉（错题本） ================= */
         .drawer-overlay {
             position: fixed; inset: 0; z-index: 200;
@@ -537,7 +574,10 @@
             <div class="count-chip" data-count="8" onclick="selectCount(this)">8</div>
         </div>
 
-        <div class="field-label">选择主题</div>
+        <div class="field-label" style="display:flex; align-items:center; justify-content:space-between">
+            <span>选择主题</span>
+            <button class="btn-sm" onclick="openImport()">＋ 导入我的八股</button>
+        </div>
         <div class="topic-grid" id="topicGrid">
             <div class="slot-empty">题库加载中…</div>
         </div>
@@ -613,6 +653,40 @@
     </section>
 
 </main>
+
+<!-- ================= 导入弹窗 ================= -->
+<div class="modal-overlay" id="importOverlay" onclick="if (event.target === this) closeImport()">
+    <div class="modal">
+        <h3>导入我的八股</h3>
+        <div class="field-label" style="margin-top:0">主题名（新主题会立即出现在选题页）</div>
+        <input type="text" id="impTopic" maxlength="24" placeholder="如：操作系统八股">
+        <div class="imp-tabs" style="margin-top:var(--space-md)">
+            <div class="imp-tab active" id="tabManual" onclick="switchImportTab('manual')">手动粘贴</div>
+            <div class="imp-tab" id="tabGen" onclick="switchImportTab('gen')">AI 出题</div>
+        </div>
+        <div id="impManual">
+            <div class="field-label" style="margin-top:0">问答内容（Q:/A: 格式）</div>
+            <textarea id="impContent" placeholder="Q: 问题&#10;A: 答案&#10;&#10;Q: 问题&#10;A: 答案&#10;&#10;（一问一答，问答之间空行）"></textarea>
+        </div>
+        <div id="impGen" style="display:none">
+            <div class="field-label" style="margin-top:0">粘贴任意资料（讲义 / 博客 / 笔记，50 字以上）</div>
+            <textarea id="genSource" style="min-height:130px" placeholder="把你的复习资料粘贴到这里，AI 会转成问答对……"></textarea>
+            <div class="field-label">出题数量</div>
+            <div class="gen-count-row">
+                <div class="count-chip" data-count="5" onclick="selectGenCount(this)">5</div>
+                <div class="count-chip selected" data-count="8" onclick="selectGenCount(this)">8</div>
+                <div class="count-chip" data-count="10" onclick="selectGenCount(this)">10</div>
+            </div>
+            <button class="btn-sm" id="btnGen" onclick="doGenerate()">✨ 生成问答</button>
+            <div class="field-label">生成结果（流式写入，可编辑，确认后点保存）</div>
+            <textarea id="genResult" placeholder="点击「生成问答」后，题目会流式出现在这里……"></textarea>
+        </div>
+        <div class="imp-actions">
+            <button class="btn-ghost" onclick="closeImport()">取消</button>
+            <button class="btn" id="btnImport" onclick="doImport()">保存进题库</button>
+        </div>
+    </div>
+</div>
 
 <!-- ================= 错题本抽屉 ================= -->
 <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
@@ -1409,8 +1483,82 @@ function retryMistakes() {
 function openDrawer() { document.body.classList.add('drawer-open'); renderMistakes(); }
 function closeDrawer() { document.body.classList.remove('drawer-open'); }
 
+/* ============================================================
+   导入弹窗（手动粘贴 / AI 出题）
+   ============================================================ */
+var genCount = 8;
+
+function selectGenCount(chip) {
+    var chips = document.querySelectorAll('#impGen .count-chip');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.remove('selected');
+    chip.classList.add('selected');
+    genCount = parseInt(chip.dataset.count, 10);
+}
+
+function openImport() {
+    document.body.classList.add('modal-open');
+    switchImportTab('manual');
+}
+
+function closeImport() {
+    document.body.classList.remove('modal-open');
+}
+
+function switchImportTab(t) {
+    el('tabManual').classList.toggle('active', t === 'manual');
+    el('tabGen').classList.toggle('active', t === 'gen');
+    el('impManual').style.display = t === 'manual' ? '' : 'none';
+    el('impGen').style.display = t === 'gen' ? '' : 'none';
+}
+
+async function doGenerate() {
+    var src = el('genSource').value.trim();
+    if (src.length < 50) { showToast('资料太短，至少 50 字', 'error'); return; }
+    var btn = el('btnGen');
+    btn.disabled = true;
+    btn.textContent = '生成中…';
+    el('genResult').value = '';
+    await new Promise(function (resolve) {
+        streamSSE('/interview/generate', { source: src, count: genCount }, function (text) {
+            var box = el('genResult');
+            box.value += text;
+            box.scrollTop = box.scrollHeight;
+        }, function () { resolve(); });
+    });
+    btn.disabled = false;
+    btn.textContent = '✨ 重新生成';
+    var n = (el('genResult').value.match(/^Q[:：]/gm) || []).length;
+    showToast(n ? '生成 ' + n + ' 题，可编辑后保存' : '未识别到问答，请检查生成结果',
+              n ? 'success' : 'error');
+}
+
+function doImport() {
+    var topic = el('impTopic').value.trim();
+    var inGen = el('impGen').style.display !== 'none';
+    var content = (inGen ? el('genResult').value : el('impContent').value).trim();
+    if (!topic) { showToast('请先填主题名', 'error'); return; }
+    if (!content) { showToast('内容为空', 'error'); return; }
+
+    el('btnImport').disabled = true;
+    fetch(API_BASE + '/interview/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: topic, content: content })
+    })
+    .then(function (r) {
+        return r.ok ? r.json() : r.json().then(function (e) { throw new Error(e.detail || '保存失败'); });
+    })
+    .then(function (data) {
+        showToast('已导入「' + data.topic + '」' + data.question_count + ' 题', 'success');
+        closeImport();
+        loadTopics();
+    })
+    .catch(function (e) { showToast(e.message, 'error'); })
+    .finally(function () { el('btnImport').disabled = false; });
+}
+
 document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeDrawer();
+    if (e.key === 'Escape') { closeDrawer(); closeImport(); }
 });
 
 /* 面试进行中刷新/关页提示（状态全在前端，刷新即弃场） */
