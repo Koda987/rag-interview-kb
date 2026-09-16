@@ -3,7 +3,7 @@
 启动脚本 —— 运行 Django + FastAPI 服务。
 
 使用方式:
-    python run.py                     # 默认端口 8000，开发模式
+    python run.py                     # 默认端口 8001，开发模式
     python run.py --port 8080         # 指定端口
     python run.py --host 0.0.0.0     # 允许外部访问
     python run.py --reload            # 开启热重载（开发环境）
@@ -21,7 +21,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description="启动 AI 面试八股知识引擎（Django + FastAPI）")
     parser.add_argument("--host", default="127.0.0.1", help="监听地址 (默认: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8001, help="监听端口 (默认: 8000)")
+    parser.add_argument("--port", type=int, default=8001, help="监听端口 (默认: 8001)")
     parser.add_argument("--reload", action="store_true", help="开启热重载（开发模式）")
     args = parser.parse_args()
 
