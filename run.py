@@ -47,6 +47,18 @@ def main():
     print(f"  健康检查:            http://{args.host}:{args.port}/api/health")
     print("=" * 60)
 
+    # 嵌入服务在模块导入期就要读密钥，提前拦截给出可操作的提示，
+    # 避免甩出一屏 traceback
+    if not os.environ.get("OPENAI_API_KEY"):
+        print()
+        print("  [启动失败] 当前终端缺少环境变量 OPENAI_API_KEY")
+        print("  Windows 用户级环境变量只对「之后新开的」进程生效——")
+        print("  如果这是 VS Code 内置终端，请完全退出 VS Code 重开，")
+        print("  或改用开始菜单新开的 PowerShell 窗口运行。")
+        print("  临时方案：在本终端执行下面命令后重试：")
+        print('    $env:OPENAI_API_KEY = "你的密钥"')
+        sys.exit(1)
+
     uvicorn.run(
         "rag_project.asgi:application",
         host=args.host,
