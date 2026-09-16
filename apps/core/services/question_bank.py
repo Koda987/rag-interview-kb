@@ -15,6 +15,12 @@ import config_data as config
 _SENT_BOUNDARY = re.compile(r'(?<=[。！？；])')
 _QA_BLOCK = re.compile(r'^Q[:：]\s*(.+?)\s*\nA[:：]\s*(.+?)\s*$', re.S)
 
+# 填空模式的术语抽取：拉丁字母/数字/连接符构成的 token（含空格相连的多词术语，
+# 如 KV Cache、lost in the middle、bge-m3、top_p、0.29）。中文语料里的拉丁
+# 串几乎全是技术术语，可直接当空；纯汉字术语不做启发式抽取（误伤率高）
+_TERM_CAND = re.compile(r'[A-Za-z0-9_\-\.+²]{2,}(?:[ ][A-Za-z0-9_\-\.+²]{2,})*')
+MAX_BLANKS = 5  # 每题最多挖空数
+
 MIN_PIECE = 8   # 碎片最短长度（去尾部标点），短于此并入相邻片
 MAX_PIECE = 80  # 碎片最长长度，超长在中文逗号处二次切分
 
@@ -57,6 +63,41 @@ def split_sentences(answer: str) -> list[str]:
             chunks.pop()
         final.extend(chunks)
     return final
+
+
+def build_cloze(answer: str):
+    """把答案里的关键术语挖成空，供填空模式使用。
+
+    返回 {"parts": [str|None], "terms": [str]}——parts 按原文顺序排列，
+    None 即空位，与 terms 一一对应；可挖术语不足 2 个时返回 None。
+    确定性纯文本处理，不调任何 API。
+    """
+    spans = []
+    seen = set()
+    for m in _TERM_CAND.finditer(answer):
+        t = m.group(0)
+        if t in seen:
+            continue
+        seen.add(t)
+        spans.append((m.start(), m.end(), t))
+
+    # 优先保留更长的术语（更有辨识度），至多 MAX_BLANKS 个，再按原文位置排序
+    spans.sort(key=lambda s: len(s[2]), reverse=True)
+    spans = spans[:MAX_BLANKS]
+    spans.sort(key=lambda s: s[0])
+    if len(spans) < 2:
+        return None
+
+    parts = []
+    terms = []
+    last = 0
+    for start, end, t in spans:
+        parts.append(answer[last:start])
+        parts.append(None)
+        terms.append(t)
+        last = end
+    parts.append(answer[last:])
+    return {"parts": parts, "terms": terms}
 
 
 class QuestionBank:
@@ -104,6 +145,7 @@ class QuestionBank:
                         {"idx": i, "text": s}
                         for i, s in enumerate(split_sentences(answer))
                     ],
+                    "cloze": build_cloze(answer),
                 }
                 items.append(item)
                 self._by_qid[item["qid"]] = item

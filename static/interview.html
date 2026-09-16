@@ -141,7 +141,7 @@
             font-size: var(--text-xs); font-weight: 700; color: var(--ink-muted);
             text-transform: uppercase; letter-spacing: 0.06em; margin: var(--space-lg) 0 var(--space-sm);
         }
-        .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+        .mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); }
         .mode-card {
             padding: var(--space-md); border: 1.5px solid var(--border);
             border-radius: var(--radius-md); background: var(--surface);
@@ -306,6 +306,68 @@
         }
         .pool-empty { text-align: center; color: var(--ink-subtle); font-size: var(--text-sm); padding: var(--space-sm) 0; }
 
+        /* ================= 填空模式 ================= */
+        .cloze-text {
+            font-size: var(--text-base); line-height: 2.5;
+            background: var(--paper); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: var(--space-md);
+        }
+        .blank {
+            display: inline-block; min-width: 76px; min-height: 32px;
+            margin: 0 3px; vertical-align: middle;
+            border-bottom: 2px solid var(--brand-light);
+            background: var(--brand-ghost); border-radius: 6px 6px 0 0;
+            cursor: pointer; text-align: center;
+            font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 700;
+            color: var(--brand-dark); line-height: 30px;
+            transition: var(--ease-out);
+        }
+        .blank:hover { background: var(--brand-surface); }
+        .blank.filled { background: var(--surface); border: 1.5px solid var(--brand); border-bottom-width: 2px; }
+        .blank.ok { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+        .blank.bad { background: var(--error-bg); border-color: var(--error); color: var(--error); }
+        .blank.reveal { background: var(--brand-surface); cursor: default; }
+        .term-pool { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-md); }
+        .term-chip {
+            padding: 7px 14px; min-height: 34px;
+            border: 1px solid var(--border); border-radius: var(--radius-full);
+            background: var(--surface); cursor: pointer; user-select: none;
+            font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 600;
+            transition: var(--ease-out);
+        }
+        .term-chip:hover { border-color: var(--brand-light); box-shadow: var(--shadow-glow); }
+        .term-chip.used { opacity: 0.25; cursor: default; }
+        .term-chip.distractor { border-color: var(--warning); background: var(--warning-bg); cursor: default; text-decoration: line-through; }
+
+        /* 干扰句/漏排标记（拼图池揭示） */
+        .piece.distractor { border-color: var(--warning); background: var(--warning-bg); cursor: default; }
+        .piece.distractor .p-text { text-decoration: line-through; color: var(--ink-muted); }
+        .piece .p-tag {
+            flex-shrink: 0; font-size: var(--text-xs); font-weight: 700;
+            color: var(--warning); background: var(--warning-bg);
+            padding: 1px 8px; border-radius: var(--radius-full); margin-top: 2px;
+        }
+        .piece.missed { border-color: var(--error); background: var(--error-bg); cursor: default; }
+
+        /* 作答结果定格卡（留在对话流里可回看） */
+        .result-card {
+            background: var(--surface); border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+            padding: var(--space-md); animation: msgIn 0.3s ease-out;
+        }
+        .rc-head { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-sm);
+            font-size: var(--text-sm); font-weight: 700; }
+        .rc-score { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 700; color: var(--brand-dark); }
+        .rc-row {
+            display: flex; gap: 8px; padding: 6px 0;
+            font-size: var(--text-sm); line-height: 1.6;
+            border-top: 1px dashed var(--border-light);
+        }
+        .rc-row .mark { flex-shrink: 0; font-weight: 700; }
+        .rc-row.ok .mark { color: var(--success); }
+        .rc-row.bad .mark { color: var(--error); }
+        .rc-row.dist .mark { color: var(--warning); }
+
         /* ================= 报告面板 ================= */
         .report-hero { text-align: center; margin-bottom: var(--space-xl); }
         .report-hero .big-score {
@@ -462,6 +524,10 @@
                 <h3>速记模式 <span class="tick" style="display:none">✓</span></h3>
                 <p>跳过自由作答，直接拼图。快速过题、适合考前突击。</p>
             </div>
+            <div class="mode-card" id="modeCloze" onclick="selectMode('cloze')">
+                <h3>填空模式 <span class="tick" style="display:none">✓</span></h3>
+                <p>关键术语挖成空，从词池点词填入（池中混有干扰词）。专背术语，判分零争议。</p>
+            </div>
         </div>
 
         <div class="field-label">本场题数</div>
@@ -503,15 +569,27 @@
             </div>
         </div>
 
-        <!-- 拼图 -->
+        <!-- 拼图（含干扰句） -->
         <div class="stage-card" id="stagePuzzle" style="display:none">
-            <div class="stage-title">🧩 把答案拼回正确顺序</div>
-            <p class="puzzle-hint">点击下方碎片，按你认为的正确顺序收进答题区；点已收的碎片可退回重排。</p>
+            <div class="stage-title">🧩 挑出答案句子并排出正确顺序</div>
+            <p class="puzzle-hint">池中混有不属于本题的干扰句——把属于答案的句子按正确顺序收进答题区（干扰句留在池中），点已收的碎片可退回。</p>
             <div id="puzzleSlots"><div class="slot-empty">你的答案顺序会出现在这里</div></div>
             <div class="puzzle-pool" id="puzzlePool"></div>
             <div class="stage-actions">
                 <button class="btn-ghost" id="btnGiveUp" onclick="giveUp()">放弃并看答案</button>
                 <button class="btn" id="btnCheck" disabled onclick="checkPuzzle()">检查</button>
+            </div>
+        </div>
+
+        <!-- 填空 -->
+        <div class="stage-card" id="stageCloze" style="display:none">
+            <div class="stage-title">✏ 术语填空</div>
+            <p class="puzzle-hint">点击词池中的术语按顺序填入空位（池中混有干扰词），点已填的空可退回重填。</p>
+            <div class="cloze-text" id="clozeText"></div>
+            <div class="term-pool" id="termPool"></div>
+            <div class="stage-actions">
+                <button class="btn-ghost" id="btnClozeGiveUp" onclick="giveUp()">放弃并看答案</button>
+                <button class="btn" id="btnClozeCheck" disabled onclick="checkCloze()">检查</button>
             </div>
         </div>
     </section>
@@ -560,14 +638,18 @@ var API_BASE = '/api';
    状态
    ============================================================ */
 var state = {
-    mode: 'practice',          // practice / quick
+    mode: 'practice',          // practice / quick / cloze
     count: 5,
     topic: null,               // 主题名（错题重练时为 '错题重练'）
     questions: [],             // 本场题目
     i: -1,                     // 当前题下标
     userAnswer: null,          // 当前题的自由作答（null=跳过）
-    order: [],                 // 已收进答题区的句子 idx（按点击顺序）
-    locked: false,             // 拼图已检查/放弃，禁止再操作
+    order: [],                 // 拼图：已收进答题区的碎片（按点击顺序，含干扰句）
+    distractors: [],           // 拼图：本场抽到的干扰句文本
+    realTotal: 0,              // 拼图：真实句子数
+    filled: null,              // 填空：各空已填术语（null=未填）
+    pool: [],                  // 填空：词池（含干扰词）
+    locked: false,             // 已检查/放弃，禁止再操作
     results: [],               // [{qid, score, gave_up, skipped}]
     busy: false                // SSE 进行中
 };
@@ -699,10 +781,11 @@ function scrollFlow() {
    ============================================================ */
 function selectMode(mode) {
     state.mode = mode;
-    el('modePractice').classList.toggle('selected', mode === 'practice');
-    el('modeQuick').classList.toggle('selected', mode === 'quick');
-    el('modePractice').querySelector('.tick').style.display = mode === 'practice' ? '' : 'none';
-    el('modeQuick').querySelector('.tick').style.display = mode === 'quick' ? '' : 'none';
+    ['Practice', 'Quick', 'Cloze'].forEach(function (m) {
+        var on = mode === m.toLowerCase();
+        el('mode' + m).classList.toggle('selected', on);
+        el('mode' + m).querySelector('.tick').style.display = on ? '' : 'none';
+    });
 }
 
 function selectCount(chip) {
@@ -777,6 +860,7 @@ function resetSession(questions) {
     el('flow').innerHTML = '';
     el('stageAnswer').style.display = 'none';
     el('stagePuzzle').style.display = 'none';
+    el('stageCloze').style.display = 'none';
     el('scoreChip').textContent = '均分 --';
     updateProgress();
 }
@@ -796,7 +880,12 @@ function nextQuestion() {
     var q = state.questions[state.i];
     state.userAnswer = null;
     state.order = [];
+    state.filled = null;
     state.locked = false;
+    // 上一题的作答区收起（结果已定格进对话流，可随时回看）
+    el('stageAnswer').style.display = 'none';
+    el('stagePuzzle').style.display = 'none';
+    el('stageCloze').style.display = 'none';
     updateProgress();
     typeQuestion(q);
 }
@@ -806,6 +895,13 @@ function onQuestionShown(q) {
         el('stageAnswer').style.display = '';
         el('answerInput').value = '';
         el('answerInput').focus();
+    } else if (state.mode === 'cloze') {
+        if (q.cloze && q.cloze.terms.length >= 2) {
+            startCloze(q);
+        } else {
+            showToast('本题可挖术语不足，自动转为拼图', '');
+            startPuzzle(q);
+        }
     } else {
         startPuzzle(q);
     }
@@ -848,64 +944,101 @@ function skipAnswer() {
 /* ============================================================
    拼图
    ============================================================ */
-function shuffledOrder(n) {
-    var arr = [];
-    for (var i = 0; i < n; i++) arr.push(i);
-    for (var attempt = 0; attempt < 10; attempt++) {
-        for (var j = n - 1; j > 0; j--) {
-            var k = Math.floor(Math.random() * (j + 1));
-            var tmp = arr[j]; arr[j] = arr[k]; arr[k] = tmp;
-        }
-        var fixed = arr.filter(function (v, p) { return v === p; }).length;
-        if (fixed <= Math.floor(n / 2)) return arr;   // 足够乱，收工
-    }
-    var t = arr[0]; arr[0] = arr[n - 1]; arr[n - 1] = t;  // 兜底：交换首尾
-    return arr;
+function otherQuestions() {
+    var cur = state.questions[state.i];
+    return state.questions.filter(function (x) { return x.qid !== cur.qid; });
 }
 
+function pickDistractorSentences(n) {
+    // 从本场其他题抽干扰句：同主题、行文风格相近，才有迷惑性
+    var pool = [];
+    otherQuestions().forEach(function (q) {
+        q.sentences.forEach(function (s) { pool.push(s.text); });
+    });
+    for (var i = pool.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool.slice(0, n);
+}
+
+function pickDistractorTerms(ownTerms, n) {
+    var own = {};
+    ownTerms.forEach(function (t) { own[t] = 1; });
+    var pool = [];
+    otherQuestions().forEach(function (q) {
+        if (!q.cloze) return;
+        q.cloze.terms.forEach(function (t) {
+            if (!own[t] && pool.indexOf(t) === -1) pool.push(t);
+        });
+    });
+    for (var i = pool.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool.slice(0, n);
+}
+
+/* ================= 拼图（含干扰句） ================= */
+
 function startPuzzle(q) {
+    state.kind = 'puzzle';
     el('stagePuzzle').style.display = '';
+    state.realTotal = q.sentences.length;
+    var items = q.sentences.map(function (s) {
+        return { idx: s.idx, text: s.text, dist: false };
+    }).concat(pickDistractorSentences(2).map(function (text, i) {
+        return { idx: -1 - i, text: text, dist: true };
+    }));
+    // 真实碎片 + 干扰句一起洗，并保证不"侥幸全对位"
+    for (var attempt = 0; attempt < 10; attempt++) {
+        for (var i = items.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = items[i]; items[i] = items[j]; items[j] = t;
+        }
+        var fixed = items.filter(function (it, p) { return !it.dist && it.idx === p; }).length;
+        if (fixed <= Math.floor(state.realTotal / 2)) break;
+    }
     var pool = el('puzzlePool');
     pool.innerHTML = '';
-    shuffledOrder(q.sentences.length).forEach(function (idx) {
-        var piece = document.createElement('div');
-        piece.className = 'piece';
-        piece.dataset.idx = idx;
-        piece.innerHTML = '<span class="p-text">' + escapeHtml(q.sentences[idx].text) + '</span>';
-        piece.onclick = function () { pickPiece(piece); };
-        pool.appendChild(piece);
-    });
+    items.forEach(function (it) { pool.appendChild(makePoolPiece(it)); });
+    state.order = [];
     renderSlots();
     el('btnCheck').disabled = true;
     el('btnGiveUp').disabled = false;
     scrollFlow();
 }
 
+function makePoolPiece(it) {
+    var piece = document.createElement('div');
+    piece.className = 'piece';
+    piece.dataset.idx = it.idx;
+    piece.dataset.dist = it.dist ? '1' : '';
+    piece.innerHTML = '<span class="p-text">' + escapeHtml(it.text) + '</span>';
+    piece.onclick = function () { pickPiece(piece); };
+    return piece;
+}
+
 function renderSlots() {
-    var q = state.questions[state.i];
     var slots = el('puzzleSlots');
-    slots.className = 'puzzle-slots' + (state.order.length === q.sentences.length ? ' complete' : '');
+    slots.className = 'puzzle-slots' + (state.order.length === state.realTotal ? ' complete' : '');
     if (!state.order.length) {
         slots.innerHTML = '<div class="slot-empty">你的答案顺序会出现在这里</div>';
         return;
     }
     slots.innerHTML = '';
-    state.order.forEach(function (idx, pos) {
+    state.order.forEach(function (it, pos) {
         var piece = document.createElement('div');
         piece.className = 'piece';
-        piece.dataset.idx = idx;
-        var mark = '';
-        if (state.locked) {
-            if (piece.classList) { /* 占位，标记在 checkPuzzle 里统一加 */ }
-        }
         piece.innerHTML = '<span class="p-no">' + (pos + 1) + '</span>' +
-                          '<span class="p-text">' + escapeHtml(q.sentences[idx].text) + '</span>' +
+                          '<span class="p-text">' + escapeHtml(it.text) + '</span>' +
+                          (state.locked && it.dist ? '<span class="p-tag">干扰句</span>' : '') +
                           '<span class="p-mark"></span>';
         if (!state.locked) {
-            piece.onclick = (function (p) {
-                return function () { unpickPiece(p); };
-            })(idx);
             piece.title = '点击退回碎片池';
+            piece.onclick = (function (item) {
+                return function () { unpickPiece(item); };
+            })(it);
         }
         slots.appendChild(piece);
     });
@@ -913,32 +1046,28 @@ function renderSlots() {
 
 function pickPiece(poolPiece) {
     if (state.locked) return;
+    var q = state.questions[state.i];
     var idx = parseInt(poolPiece.dataset.idx, 10);
-    state.order.push(idx);
+    var it = poolPiece.dataset.dist
+        ? { idx: idx, text: poolPiece.querySelector('.p-text').textContent, dist: true }
+        : { idx: idx, text: q.sentences[idx].text, dist: false };
+    state.order.push(it);
     poolPiece.remove();
     renderSlots();
-    var q = state.questions[state.i];
-    el('btnCheck').disabled = state.order.length !== q.sentences.length;
+    el('btnCheck').disabled = state.order.length !== state.realTotal;
     if (!el('puzzlePool').children.length) {
         el('puzzlePool').innerHTML = '<div class="pool-empty">全部碎片已收进答题区</div>';
     }
 }
 
-function unpickPiece(idx) {
+function unpickPiece(it) {
     if (state.locked) return;
-    var q = state.questions[state.i];
-    var pos = state.order.indexOf(idx);
+    var pos = state.order.indexOf(it);
     if (pos === -1) return;
     state.order.splice(pos, 1);
-    // 碎片回池（按原乱序位置插回，简化为追加）
     var poolEmpty = el('puzzlePool').querySelector('.pool-empty');
     if (poolEmpty) poolEmpty.remove();
-    var piece = document.createElement('div');
-    piece.className = 'piece';
-    piece.dataset.idx = idx;
-    piece.innerHTML = '<span class="p-text">' + escapeHtml(q.sentences[idx].text) + '</span>';
-    piece.onclick = function () { pickPiece(piece); };
-    el('puzzlePool').appendChild(piece);
+    el('puzzlePool').appendChild(makePoolPiece(it));
     renderSlots();
     el('btnCheck').disabled = true;
 }
@@ -946,52 +1075,177 @@ function unpickPiece(idx) {
 function checkPuzzle() {
     if (state.locked || state.busy) return;
     state.locked = true;
-    var q = state.questions[state.i];
     var correct = 0;
-    var slotEls = el('puzzleSlots').querySelectorAll('.piece');
-    slotEls.forEach(function (piece, pos) {
-        var ok = state.order[pos] === pos;
+    el('puzzleSlots').querySelectorAll('.piece').forEach(function (piece, pos) {
+        var it = state.order[pos];
+        var ok = !it.dist && it.idx === pos;
         if (ok) correct++;
         piece.classList.add(ok ? 'ok' : 'bad');
         piece.querySelector('.p-mark').textContent = ok ? '✓' : '✗';
     });
-    document.querySelectorAll('.stage-card').forEach(function (c) {
-        c.classList.toggle('pieces-locked', c.id === 'stagePuzzle');
+    // 池中余下的揭示：干扰句划线标出，真实句标"漏排"
+    Array.prototype.forEach.call(el('puzzlePool').children, function (piece) {
+        if (!piece.classList.contains('piece')) return;
+        piece.classList.add(piece.dataset.dist ? 'distractor' : 'missed');
+        piece.onclick = null;
     });
-    var score = correct / q.sentences.length;
-    showToast('位置正确 ' + correct + '/' + q.sentences.length, correct === q.sentences.length ? 'success' : '');
-    finishQuestion(score, false);
+    el('stagePuzzle').classList.add('pieces-locked');
+    var score = correct / state.realTotal;
+    showToast('位置正确 ' + correct + '/' + state.realTotal, correct === state.realTotal ? 'success' : '');
+    finishQuestion(score, false, 'puzzle');
 }
+
+/* ================= 填空 ================= */
+
+function startCloze(q) {
+    state.kind = 'cloze';
+    el('stageCloze').style.display = '';
+    state.filled = q.cloze.terms.map(function () { return null; });
+    var box = el('clozeText');
+    box.innerHTML = '';
+    var bi = 0;
+    q.cloze.parts.forEach(function (p) {
+        if (p !== null) {
+            box.appendChild(document.createTextNode(p));
+        } else {
+            var b = document.createElement('span');
+            b.className = 'blank';
+            b.dataset.pos = String(bi++);
+            b.onclick = function () { unfillBlank(parseInt(b.dataset.pos, 10)); };
+            box.appendChild(b);
+        }
+    });
+    state.pool = q.cloze.terms.concat(pickDistractorTerms(q.cloze.terms, 3));
+    for (var i = state.pool.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = state.pool[i]; state.pool[i] = state.pool[j]; state.pool[j] = t;
+    }
+    renderTermPool();
+    el('btnClozeCheck').disabled = true;
+    el('btnClozeGiveUp').disabled = false;
+    scrollFlow();
+}
+
+function renderTermPool() {
+    var q = state.questions[state.i];
+    var pool = el('termPool');
+    pool.innerHTML = '';
+    state.pool.forEach(function (t) {
+        var chip = document.createElement('div');
+        var used = state.filled && state.filled.indexOf(t) !== -1;
+        chip.className = 'term-chip' + (used ? ' used' : '');
+        chip.textContent = t;
+        chip.onclick = function () { fillTerm(t); };
+        pool.appendChild(chip);
+    });
+}
+
+function blankEls() {
+    return el('clozeText').querySelectorAll('.blank');
+}
+
+function fillTerm(term) {
+    if (state.locked || !state.filled) return;
+    var blanks = blankEls();
+    for (var i = 0; i < state.filled.length; i++) {
+        if (state.filled[i] === null) {
+            state.filled[i] = term;
+            blanks[i].textContent = term;
+            blanks[i].classList.add('filled');
+            renderTermPool();
+            var q = state.questions[state.i];
+            el('btnClozeCheck').disabled = state.filled.indexOf(null) !== -1;
+            return;
+        }
+    }
+}
+
+function unfillBlank(pos) {
+    if (state.locked || !state.filled) return;
+    if (state.filled[pos] === null) return;
+    state.filled[pos] = null;
+    var blanks = blankEls();
+    blanks[pos].textContent = '';
+    blanks[pos].classList.remove('filled');
+    renderTermPool();
+    el('btnClozeCheck').disabled = true;
+}
+
+function checkCloze() {
+    if (state.locked || state.busy) return;
+    state.locked = true;
+    var q = state.questions[state.i];
+    var correct = 0;
+    blankEls().forEach(function (b, i) {
+        var ok = state.filled[i] === q.cloze.terms[i];
+        if (ok) correct++;
+        b.classList.add(ok ? 'ok' : 'bad');
+    });
+    // 词池干扰词揭示
+    Array.prototype.forEach.call(el('termPool').children, function (chip) {
+        if (chip.classList.contains('used')) return;
+        if (q.cloze.terms.indexOf(chip.textContent) === -1) chip.classList.add('distractor');
+        chip.onclick = null;
+    });
+    var score = correct / q.cloze.terms.length;
+    showToast('填对 ' + correct + '/' + q.cloze.terms.length, correct === q.cloze.terms.length ? 'success' : '');
+    finishQuestion(score, false, 'cloze');
+}
+
+/* ================= 放弃 / 收题 ================= */
 
 function giveUp() {
     if (state.locked || state.busy) return;
     state.locked = true;
-    var q = state.questions[state.i];
-    // 直接展示正确顺序
-    state.order = q.sentences.map(function (s) { return s.idx; });
-    state.order.sort(function (a, b) { return a - b; });
-    renderSlots();
-    el('puzzleSlots').querySelectorAll('.piece').forEach(function (p) { p.classList.add('reveal'); });
-    el('puzzlePool').innerHTML = '<div class="pool-empty">已展示正确答案</div>';
-    el('stagePuzzle').classList.add('pieces-locked');
-    showToast('已展示正确答案，本题记 0 分', '');
-    finishQuestion(0, true);
+    if (state.kind === 'cloze') {
+        var q = state.questions[state.i];
+        state.filled = q.cloze.terms.slice();
+        blankEls().forEach(function (b, i) {
+            b.textContent = q.cloze.terms[i];
+            b.classList.add('reveal');
+        });
+        Array.prototype.forEach.call(el('termPool').children, function (chip) {
+            if (!chip.classList.contains('used') &&
+                q.cloze.terms.indexOf(chip.textContent) === -1) {
+                chip.classList.add('distractor');
+            }
+            chip.onclick = null;
+        });
+        showToast('已展示正确答案，本题记 0 分', '');
+        finishQuestion(0, true, 'cloze');
+    } else {
+        var qq = state.questions[state.i];
+        state.order = qq.sentences.map(function (s) {
+            return { idx: s.idx, text: s.text, dist: false };
+        });
+        renderSlots();
+        el('puzzleSlots').querySelectorAll('.piece').forEach(function (p) { p.classList.add('reveal'); });
+        Array.prototype.forEach.call(el('puzzlePool').children, function (piece) {
+            if (piece.classList.contains('piece') && piece.dataset.dist) piece.classList.add('distractor');
+        });
+        el('stagePuzzle').classList.add('pieces-locked');
+        showToast('已展示正确答案，本题记 0 分', '');
+        finishQuestion(0, true, 'puzzle');
+    }
 }
 
-function finishQuestion(score, gaveUp) {
+function finishQuestion(score, gaveUp, kind) {
     var q = state.questions[state.i];
-    state.results.push({
-        qid: q.qid, score: score, gave_up: gaveUp, skipped: false
-    });
+    state.results.push({ qid: q.qid, score: score, gave_up: gaveUp, skipped: false });
     recordResult(q, score, gaveUp);
     updateProgress();
     el('btnCheck').disabled = true;
     el('btnGiveUp').disabled = true;
+    el('btnClozeCheck').disabled = true;
+    el('btnClozeGiveUp').disabled = true;
+    snapshotResult(q, score, gaveUp, kind);
     // 面试官点评（点评完自动进入下一题/报告）
+    var total = kind === 'cloze' ? q.cloze.terms.length : state.realTotal;
     streamInto('/interview/review', {
         qid: q.qid,
         user_answer: state.userAnswer || undefined,
-        puzzle: { correct: Math.round(score * q.sentences.length), total: q.sentences.length, gave_up: gaveUp }
+        puzzle: { correct: Math.round(score * total), total: total, gave_up: gaveUp },
+        kind: kind
     }, function () {
         if (state.i + 1 < state.questions.length) {
             setTimeout(nextQuestion, 800);
@@ -999,6 +1253,49 @@ function finishQuestion(score, gaveUp) {
             setTimeout(doReport, 600);
         }
     });
+}
+
+function snapshotResult(q, score, gaveUp, kind) {
+    // 把本题作答的最终结果定格进对话流，随时可回看
+    var card = document.createElement('div');
+    card.className = 'result-card';
+    var head = '<div class="rc-head">' + (kind === 'cloze' ? '✏ 填空结果' : '🧩 拼图结果') +
+        ' <span class="rc-score">' + (gaveUp ? '放弃' : Math.round(score * 100) + ' 分') + '</span></div>';
+    var rows = '';
+    if (kind === 'cloze') {
+        q.cloze.terms.forEach(function (term, i) {
+            var got = state.filled ? state.filled[i] : null;
+            var ok = !gaveUp && got === term;
+            rows += '<div class="rc-row ' + (gaveUp ? 'dist' : ok ? 'ok' : 'bad') + '">' +
+                    '<span class="mark">' + (gaveUp ? '·' : ok ? '✓' : '✗') + '</span>' +
+                    '<span>' + escapeHtml(term) +
+                    (!ok && !gaveUp && got ? '（你填了 ' + escapeHtml(got) + '）' : '') +
+                    '</span></div>';
+        });
+    } else {
+        state.order.forEach(function (it, pos) {
+            var ok = !it.dist && it.idx === pos;
+            rows += '<div class="rc-row ' + (it.dist ? 'dist' : ok ? 'ok' : 'bad') + '">' +
+                    '<span class="mark">' + (ok && !it.dist ? '✓' : '✗') + '</span>' +
+                    '<span>' + escapeHtml(it.text) + (it.dist ? '（干扰句）' : '') + '</span></div>';
+        });
+        // 漏排的真实句子补进定格卡
+        var picked = {};
+        state.order.forEach(function (it) { if (!it.dist) picked[it.idx] = 1; });
+        q.sentences.forEach(function (s) {
+            if (!picked[s.idx]) {
+                rows += '<div class="rc-row bad"><span class="mark">漏</span><span>' +
+                        escapeHtml(s.text) + '（未排入）</span></div>';
+            }
+        });
+    }
+    card.innerHTML = head + rows;
+    el('flow').appendChild(card);
+    // 收起作答区，避免旧拼图悬在新问题下面
+    el('stageAnswer').style.display = 'none';
+    el('stagePuzzle').style.display = 'none';
+    el('stageCloze').style.display = 'none';
+    scrollFlow();
 }
 
 /* ============================================================

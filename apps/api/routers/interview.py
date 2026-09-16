@@ -73,10 +73,16 @@ def get_quiz(topic: str = "", count: int = 5, qids: str = ""):
         questions=[QuizQuestion(**i) for i in random.sample(items, count)])
 
 
+_MODE_DESC = {
+    "practice": "先自由作答再拼图对答案",
+    "quick": "直接碎片拼图速记",
+    "cloze": "关键术语挖空填词，专背术语",
+}
+
+
 @router.post("/opening", summary="面试开场白（SSE）")
 def opening(request: OpeningRequest):
-    mode_desc = ("先自由作答再拼图对答案" if request.mode == "practice"
-                 else "直接碎片拼图速记")
+    mode_desc = _MODE_DESC.get(request.mode, _MODE_DESC["practice"])
     return _sse(interviewer_service.stream("opening", {
         "topic": request.topic,
         "count": request.count,
@@ -97,9 +103,14 @@ def review(request: ReviewRequest):
         puzzle_desc = "候选人选择放弃并直接查看了标准答案"
     else:
         pct = round(puzzle.correct / puzzle.total * 100)
-        puzzle_desc = f"碎片排序 {puzzle.correct}/{puzzle.total} 片位置正确（{pct}%）"
+        unit = "个空" if request.kind == "cloze" else "片"
+        puzzle_desc = (f"术语填空 {puzzle.correct}/{puzzle.total}{unit}正确（{pct}%）"
+                       if request.kind == "cloze"
+                       else f"碎片排序 {puzzle.correct}/{puzzle.total}{unit}位置正确（{pct}%）")
 
-    user_answer = (request.user_answer or "").strip() or "（本题跳过了自由作答）"
+    user_answer = (request.user_answer or "").strip() or (
+        "（填空模式，本题无自由作答环节）" if request.kind == "cloze"
+        else "（本题跳过了自由作答）")
 
     return _sse(interviewer_service.stream("review", {
         "question": item["question"],
@@ -130,8 +141,11 @@ def report(request: ReportRequest):
         lines.append(f"- {item['question']}：{desc}")
 
     avg = total / len(request.results)
-    mode_desc = ("练习模式（先答后拼）" if request.mode == "practice"
-                 else "速记模式（直接拼图）")
+    mode_desc = {
+        "practice": "练习模式（先答后拼）",
+        "quick": "速记模式（直接拼图）",
+        "cloze": "填空模式（术语挖空）",
+    }.get(request.mode, "练习模式（先答后拼）")
     return _sse(interviewer_service.stream("report", {
         "topic": request.topic,
         "mode_desc": mode_desc,

@@ -118,6 +118,12 @@ class QuizSentence(BaseModel):
     text: str = Field(..., description="碎片文本")
 
 
+class ClozeData(BaseModel):
+    """填空模式数据：parts 按原文顺序排列，None 即空位，与 terms 一一对应"""
+    parts: list[Optional[str]] = Field(..., description="原文切片，空位为 None")
+    terms: list[str] = Field(..., description="被挖空的术语（按空位顺序）")
+
+
 class QuizQuestion(BaseModel):
     """一道面试题"""
     qid: str = Field(..., description="题目 ID，如 大模型基础与幻觉#3")
@@ -125,6 +131,7 @@ class QuizQuestion(BaseModel):
     question: str = Field(..., description="题面")
     answer: str = Field(..., description="标准答案")
     sentences: list[QuizSentence] = Field(default_factory=list, description="切好的答案碎片")
+    cloze: Optional[ClozeData] = Field(default=None, description="填空模式数据（术语不足时为 None）")
 
 
 class QuizResponse(BaseModel):
@@ -151,7 +158,8 @@ class ReviewRequest(BaseModel):
     qid: str = Field(..., min_length=1, max_length=300, description="题目 ID")
     user_answer: Optional[str] = Field(
         default=None, max_length=2000, description="练习模式下候选人的自由作答")
-    puzzle: PuzzleResult = Field(..., description="拼图结果")
+    puzzle: PuzzleResult = Field(..., description="作答结果（拼图片数或填空空数）")
+    kind: str = Field(default="puzzle", description="puzzle / cloze")
 
 
 class ReportItem(BaseModel):
